@@ -25,7 +25,7 @@ defineEmits(['view-details', 'remove-paper'])
 <style scoped>
 .paper-row {
   background-color: #ffffff; 
-  border: 1px solid #ccc;
+  border: 1px solid #ffffff;
   border-radius: 12px;
   padding: 12px 20px;
   display: flex;

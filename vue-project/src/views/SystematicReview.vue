@@ -2,20 +2,22 @@
   <main class="review-page">
     <!-- 移除了原本的任務說明與右上角按鈕，只保留大標題 -->
     <header class="page-header">
-      <h2 class="main-title">Systematic Review</h2>
+      <h2 class="main-title">系統性文獻回顧 <span style ="color:#e74c3c">Systematic Review</span></h2>
     </header>
 
     <div class="content-layout">
       <!-- 左側深度篩選面板 -->
       <aside class="sidebar-filter">
-        <h3 class="filter-title">深度篩選</h3>
+        <h3 class="filter-title">深度條件篩選：</h3>
         
         <div class="filter-group">
           <label>出版年份</label>
           <div class="form-row inline-row">
+            <span class="input-text">從</span>
             <input type="number" v-model="filters.startYear" class="short-input">
             <span class="input-text">至</span>
             <input type="number" v-model="filters.endYear" class="short-input">
+            <span class="input-text">年</span>
           </div>
         </div>
 
@@ -70,10 +72,10 @@
         <div class="pool-header">
           <div class="pool-title-group">
             <button class="info-btn">!</button>
-            <h3 class="pool-title">KCC Evidence Pool：</h3>
+            <h3 class="pool-title">KCC EVIDENCE POOL：</h3>
           </div>
           <!-- 統合分析按鈕移到這裡，與 Evidence Pool 標題一左一右 -->
-          <button class="action-btn submit-analysis" @click="goToMetaAnalysis">統合分析</button>
+          <button class="action-btn submit-analysis" @click="goToMetaAnalysis">執行統合分析</button>
         </div>
 
         <!-- 10 KCCs 按鈕區 -->
@@ -209,7 +211,7 @@ const goToMetaAnalysis = () => {
 <style scoped>
 .review-page { max-width: 1200px; margin: 40px auto; padding: 0 20px; }
 .page-header { margin-bottom: 24px; }
-.main-title { color: #333; font-size: 28px; font-weight: bold; margin: 0; }
+.main-title { font-family: 'Georgia', serif; font-size: 40px; font-weight: 900; margin: 0 0 12px 0; letter-spacing: -1px;}
 .header-actions { display: flex; align-items: flex-start; gap: 24px; }
 .task-desc { color: #666; font-size: 14px; margin: 0; }
 .highlight-red { color: #e74c3c; font-weight: bold; }
@@ -228,7 +230,7 @@ const goToMetaAnalysis = () => {
   white-space: nowrap; /* 確保文字不會換行 */
 }
 .short-input {
-  width: 70px; /* 框框縮短 */
+  width: 60px; /* 框框縮短 */
   border: 1px solid #ccc;
   border-radius: 4px;
   padding: 8px;
@@ -240,16 +242,16 @@ const goToMetaAnalysis = () => {
 .sidebar-filter {
   width: 280px;
   background-color: #ffffff;
-  border: 1px solid #d9d9d9;
+  border: 1px solid #ffffff;
   border-radius: 24px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
-.filter-title { text-align: center; margin: 0 0 12px 0; color: #333; }
-.filter-group label { display: block; margin-bottom: 8px; color: #555; }
-.form-row { display: flex; gap: 8px; }
+.filter-title { text-align:left; margin: 0 0 12px 0; color: #333; }
+.filter-group label { display: block; margin-bottom: 8px; color: #555; font-weight: bold;}
+.form-row { display: flex; gap: 8px; font-weight: bold;}
 .year-input, .full-input {
   width: 100%;
   border: 1px solid #ccc;
@@ -263,7 +265,7 @@ const goToMetaAnalysis = () => {
 .chip-btn {
   background-color: #ffffff;
   color: #000;
-  border: 1px solid var(--light-color);
+  border: 1px solid #ccc;
   padding: 6px 16px;
   border-radius: 8px;
   cursor: pointer;
@@ -290,10 +292,23 @@ const goToMetaAnalysis = () => {
 }
 
 /* 送出篩選與統合分析，加上點擊特效 */
-.action-btn.apply-filter,
-.action-btn.submit-analysis {
+.action-btn.apply-filter {
   padding: 12px 24px; /* 可依版面微調寬度 */
 }
+
+/* 將原本共用的深色蓋掉，獨立設定這個按鈕為 #1a1e29 */
+.action-btn.submit-analysis {
+  background-color: #1a1e29;
+  color: var(--white);
+  border-color: #1a1e29;
+  padding: 12px 24px;
+}
+
+.action-btn.submit-analysis:hover {
+  background-color: #1a1e29;
+  color: var(--white);
+}
+
 .action-btn:active {
   opacity: 0.6;
   transform: scale(0.96); /* 稍微縮小創造點擊下壓的物理感 */
@@ -329,13 +344,14 @@ const goToMetaAnalysis = () => {
 /* 10個機轉按鈕改成白底 */
 .kcc-btn {
   background-color: #ffffff; /* 改為白底 */
-  border: 1px solid #ccc;
+  border: 1px solid #ffffff;
   border-radius: 8px;
   padding: 8px;
   text-align: center;
-  font-size: 13px;
+  font-size: 14px;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-weight: bold;
 }
 /* 機轉按鈕點選後的狀態維持深色 */
 .kcc-btn.active {
