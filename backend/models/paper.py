@@ -1,1 +1,0 @@
-# papers 表 (PMID, Title, Abstract, ISSN, Q-Rank, Model_Type)
