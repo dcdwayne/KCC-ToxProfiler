@@ -1,0 +1,1 @@
+# 【負責網路請求】專職呼叫 ESearch、EFetch 與 ELink (算引用數)

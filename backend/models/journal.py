@@ -1,0 +1,1 @@
+# journal_rankings 表 (ISSN, Quartile, SJR)

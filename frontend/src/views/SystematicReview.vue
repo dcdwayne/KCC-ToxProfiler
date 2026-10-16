@@ -40,7 +40,7 @@
         </div>
 
         <div class="filter-group">
-          <label>實驗模型</label>
+          <label>資料來源</label>
           <div class="chip-container">
             <button 
               v-for="model in ['in vitro', 'in vivo', 'cohort']" 
@@ -99,7 +99,7 @@
             <div class="sort-options">
               <span>排序：</span>
               <button class="chip-btn small active">適配度</button>
-              <button class="chip-btn small">實驗模型</button>
+              <button class="chip-btn small">資料來源</button>
               <button class="chip-btn small">引用次數</button>
             </div>
           </div>

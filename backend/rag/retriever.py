@@ -1,0 +1,1 @@
+# 執行 pgvector 餘弦相似度搜尋 + Cross-Encoder 重排 (Reranking)
