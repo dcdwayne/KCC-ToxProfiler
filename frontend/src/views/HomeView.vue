@@ -33,13 +33,15 @@
         
         <div class="form-row">
           <span>出版年份：</span>
+          <span>從</span>
           <input type="number" v-model="searchForm.startYear" placeholder="YYYY" class="year-input">
-          <span> ~ </span>
+          <span>至</span>
           <input type="number" v-model="searchForm.endYear" placeholder="YYYY" class="year-input">
+          <span>年</span>
         </div>
 
         <div class="form-row">
-          <span>引用次數：被引用</span>
+          <span>引用次數： 被引用至少</span>
           <input type="number" v-model="searchForm.minCitations" class="cite-input">
           <span>次數以上</span>
         </div>
@@ -154,14 +156,14 @@ const submitFilter = async () => {
 
 .main-title {
   color: #343434;
-  font-size: 28px;
+  font-size: 32px;
   margin-bottom: 8px;
   font-weight:bold;
 }
 
 .sub-title {
-  color:var(--dark-color);
-  font-size: 16px;
+  color:#555;
+  font-size: 20px;
   font-weight:bold;
 }
 
@@ -209,13 +211,14 @@ const submitFilter = async () => {
 /* 按鈕點擊變色邏輯實作 */
 .chip-btn {
   background-color: #ffffff;
-  color: #000000;
+  color: #555;
   border: 1px solid var(--dark-color);
   padding: 8px 24px;
   border-radius: 8px;
   font-size: 16px;
   cursor: pointer;
   transition: all 0.2s ease;
+  font-weight: bold;
 }
 
 .chip-btn.small {
@@ -254,6 +257,12 @@ const submitFilter = async () => {
   color: #444;
 }
 
+.form-row span { 
+  display: block; 
+  margin-bottom: 8px; 
+  color: #555; 
+  font-weight: bold;}
+
 input[type="number"] {
   border: 1px solid #ccc;
   border-radius: 4px;
@@ -266,11 +275,15 @@ input[type="number"]:focus {
 }
 
 .year-input {
-  width: 80px;
+  width: 60px;
+  font-weight: bold;
+  color:#555;
 }
 
 .cite-input {
-  width: 60px;
+  width: 50px;
+  font-weight:bold;
+  color:#555;
 }
 
 .radio-label {
@@ -278,6 +291,8 @@ input[type="number"]:focus {
   align-items: center;
   gap: 6px;
   cursor: pointer;
+  color: #555; 
+  font-weight: bold;
 }
 
 .preview-section {
@@ -299,8 +314,9 @@ input[type="number"]:focus {
   align-items: center;
   justify-content: center;
   color: #999;
-  font-size: 14px;
+  font-size: 16px;
   transition: all 0.3s ease;
+  font-weight:bold;
 }
 
 .result-box.has-data {
@@ -308,6 +324,7 @@ input[type="number"]:focus {
   color: var(--dark-color);
   border-color: var(--primary-color);
   font-size: 16px;
+  font-weight: bold;
 }
 
 .submit-section {
@@ -346,9 +363,16 @@ input[type="number"]:focus {
 }
 
 .action-btn.submit {
-  background-color: var(--dark-color);
+  background-color: #1a1e29; /* 換成指定的深色 */
   color: var(--white);
+  border-color: #1a1e29;
   padding: 12px 64px;
+}
+
+/* 確保滑鼠移過去時，也是保持這個質感深色 (或微微調亮一點點) */
+.action-btn.submit:hover {
+  background-color: #1a1e29; 
+  color: var(--white);
 }
 
 .action-btn.submit:active {

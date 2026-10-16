@@ -1,0 +1,1 @@
+# chunks 表 (paper_id 外鍵, chunk_text, embedding 向量)

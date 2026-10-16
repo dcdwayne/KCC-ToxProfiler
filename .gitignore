@@ -1,0 +1,11 @@
+# 環境變數與機密金鑰
+.env
+
+# Python 虛擬環境與快取
+venv/
+.venv/
+__pycache__/
+*.pyc
+
+# 忽略體積龐大的原始 CSV (或視需求保留)
+backend/data/*.csv

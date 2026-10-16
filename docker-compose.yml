@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL + pgvector 資料庫服務
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: tox-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: dwayne
+      POSTGRES_PASSWORD: toxpassword123
+      POSTGRES_DB: toxprofiler_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  # 2. pgAdmin 4 視覺化管理介面
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tox-pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@toxprofiler.com
+      PGADMIN_DEFAULT_PASSWORD: adminpassword123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:
