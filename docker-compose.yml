@@ -7,9 +7,9 @@ services:
     container_name: tox-postgres
     restart: always
     environment:
-      POSTGRES_USER: dwayne
-      POSTGRES_PASSWORD: toxpassword123
-      POSTGRES_DB: toxprofiler_db
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
     ports:
       - "5432:5432"
     volumes:
@@ -21,8 +21,8 @@ services:
     container_name: tox-pgadmin
     restart: always
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@toxprofiler.com
-      PGADMIN_DEFAULT_PASSWORD: adminpassword123
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
     ports:
       - "5050:80"
     depends_on:
