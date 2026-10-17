@@ -6,3 +6,6 @@ boto3
 sqlalchemy 
 psycopg2
 pandas
+voyageai
+pgvector
+regex

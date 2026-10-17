@@ -1,21 +1,44 @@
 <template>
-  <div class="modal-overlay" @click.self="$emit('close')">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h4>{{ paper.title }}</h4>
-        <button class="close-btn" @click="$emit('close')">×</button>
+<div class="modal-overlay" @click.self="$emit('close')">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h4>{{ paper.title }}</h4>
+      <button class="close-btn" @click="$emit('close')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="meta-info">
+        <span class="badge">PMID: {{ paper.id }}</span>
+        <span class="badge">模型: {{ paper.model }}</span>
+        <span class="badge">引用次數: {{ paper.citations }}</span>
       </div>
-      <div class="modal-body">
-        <div class="meta-info">
-          <span class="badge">PMID: {{ paper.id }}</span>
-          <span class="badge">模型: {{ paper.model }}</span>
-          <span class="badge">引用次數: {{ paper.citations }}</span>
-        </div>
-        <h5>摘要 (Abstract)：</h5>
-        <p class="abstract-text">{{ paper.abstract }}</p>
-      </div>
+      <h5>摘要 (Abstract)：</h5>
+      <p class="abstract-text">{{ paper.abstract }}</p>
     </div>
   </div>
+</div>
+
+<!-- PaperDetailModal.vue 摘要渲染概念預覽 -->
+<!--<div class="abstract-container">-->
+  <!-- 依照 chunk_index 順序把片段拼回整篇摘要 -->
+  <!--
+  <span 
+    v-for="chunk in paper.chunks" 
+    :key="chunk.chunk_index"
+    :class="{ 'kcc-matched-highlight': chunk.matched_kccs && chunk.matched_kccs.length > 0 }"
+  >
+    {{ chunk.chunk_text }}{{ ' ' }}
+  -->
+    <!-- 當滑鼠 Hover 到有命中的片段時，浮現對應的 KCC 關鍵片段 -->
+    <!--
+    <span v-if="chunk.matched_kccs && chunk.matched_kccs.length > 0" class="kcc-hover-tooltip">
+      <div v-for="match in chunk.matched_kccs" :key="match.kcc_code">
+        <strong>🎯 {{ match.kcc_code }} (相似度: {{ (match.similarity * 100).toFixed(1) }}%)</strong><br/>
+        {{ match.query_text }}
+      </div>
+    </span>
+  </span>
+</div>
+-->
 </template>
 
 <script setup>
