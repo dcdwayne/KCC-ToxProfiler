@@ -9,3 +9,4 @@ pandas
 voyageai
 pgvector
 regex
+google-genai

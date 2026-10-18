@@ -3,6 +3,9 @@ from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.sql import func
 from app.database import Base
 
+# ==========================================
+# 第一張表：target_chemicals (關注化學物質表)
+# ==========================================
 class TargetChemical(Base):
     __tablename__ = "target_chemicals"
 

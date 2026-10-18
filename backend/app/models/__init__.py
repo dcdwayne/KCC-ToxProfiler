@@ -3,3 +3,5 @@ from app.models.chemical import TargetChemical
 from app.models.journal import JournalRanking
 from app.models.paper import Paper, PaperModel, PaperAuthor
 from app.models.chunk import PaperChunk
+from app.models.kcc import KccQuery, KccQueryEmbedding
+from app.models.evaluation import Evaluation, EvaluationEvidence

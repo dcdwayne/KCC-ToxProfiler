@@ -6,6 +6,9 @@ from sqlalchemy.sql import func
 from pgvector.sqlalchemy import Vector
 from app.database import Base
 
+# ==========================================
+# 第六張表：chunks (文獻摘要切片向量表)
+# ==========================================
 class PaperChunk(Base):
     __tablename__ = "chunks"
 

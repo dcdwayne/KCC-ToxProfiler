@@ -63,3 +63,29 @@ def embed_queries(queries: list[str]) -> list[list[float]]:
         input_type="query"
     )
     return result.embeddings
+
+# 加入 Voyage Cross-Encoder 重排函式
+"""
+直接使用 Voyage AI 的 rerank-2 模型來執行第二階段的 Cross-Encoder 重排。
+"""
+
+def rerank_chunks(query_text: str, chunk_texts: list[str], top_k: int = 15) -> list[dict]:
+    """
+    呼叫 Voyage AI Cross-Encoder (rerank-2) 進行精準重排。
+    回傳格式: [{"index": 原陣列索引, "relevance_score": 重排分數}, ...]
+    """
+    if not chunk_texts:
+        return []
+
+    vo = get_voyage_client()
+    reranked = vo.rerank(
+        query=query_text,
+        documents=chunk_texts,
+        model="rerank-2",
+        top_k=min(top_k, len(chunk_texts))
+    )
+    time.sleep(0.25) # 保護 API 速率限制
+    return [
+        {"index": r.index, "relevance_score": float(r.relevance_score)}
+        for r in reranked.results
+    ]
