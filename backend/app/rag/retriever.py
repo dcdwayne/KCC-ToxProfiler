@@ -105,6 +105,7 @@ def build_evidence_pool_for_chemical(
                 JOIN paper_models m ON p.id = m.paper_id
                 CROSS JOIN kcc_query_embeddings ke
                 WHERE p.cas_number = :cas_number
+                  AND p.is_selected = TRUE
                   AND ke.query_code = :query_code
                   AND (1 - (c.embedding <=> ke.embedding)) >= :min_cosine
                   {extra_sql_filters}
