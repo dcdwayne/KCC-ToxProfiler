@@ -2,7 +2,7 @@
 # backend/app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import search
+from app.routers import search, review  # 👈 引入 review
 
 app = FastAPI(title="KCC ToxProfiler API", version="1.0.0")
 
@@ -17,6 +17,7 @@ app.add_middleware(
 
 # 註冊首頁搜尋與篩選路由
 app.include_router(search.router)
+app.include_router(review.router) # 👈 註冊 review 路由
 
 @app.get("/")
 def health_check():
