@@ -1,5 +1,5 @@
 # backend/app/routers/review.py
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -362,20 +362,48 @@ def get_paper_modal_detail(
     }
 
 
+def _run_llm_reports_in_background(evaluation_id: int):
+    """背景任務：獨立建立 DB Session 執行耗時的 LLM 雙報告生成"""
+    bg_db = SessionLocal()
+    try:
+        generate_evaluation_reports(bg_db, evaluation_id)
+    except Exception as e:
+        print(f"❌ 背景生成報告失敗 (Evaluation #{evaluation_id}): {e}")
+    finally:
+        bg_db.close()
+
+
 # =====================================================================
-# API 7: 點擊『執行統合分析』-> 根據 is_selected = True 的文獻算分並呼叫 LLM 生成報告
+# API 7: 點擊『執行統合分析』
+# 1. 立即同步計算 10 KCC 與 Hazard Score (僅需 0.05 秒)
+# 2. 將耗時的 LLM 報告生成交給 BackgroundTasks 在背景執行，讓前端立刻跳轉到 Meta 頁先看儀表板！
 # =====================================================================
 @router.post("/{evaluation_id}/analyze")
-def run_meta_analysis(evaluation_id: int, db: Session = Depends(get_db)):
-    # 1. 執行 KCC 算分器
+def run_meta_analysis(
+    evaluation_id: int,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
+    eval_obj = db.query(Evaluation).filter_by(id=evaluation_id).first()
+    if not eval_obj:
+        raise HTTPException(status_code=404, detail=f"找不到評估單 ID: {evaluation_id}")
+
+    # 1. 先將舊報告清空並標記為 GENERATING_REPORTS，讓前端知道報告正在生成中
+    eval_obj.public_report = None
+    eval_obj.expert_report = None
+    eval_obj.status = "GENERATING_REPORTS"
+    db.commit()
+
+    # 2. 立即計算 10 KCC 分數與總體危害分數 (瞬間完成)
     score_res = calculate_evaluation_scores(db, evaluation_id)
-    # 2. 執行 LLM 民眾版與專家版報告生成
-    report_res = generate_evaluation_reports(db, evaluation_id)
+
+    # 3. 排入背景任務生成民眾版與專家版報告
+    background_tasks.add_task(_run_llm_reports_in_background, evaluation_id)
 
     return {
-        "message": "統合分析與報告生成完成",
+        "message": "儀表板算分完成，LLM 報告已於背景啟動生成",
         "evaluation_id": evaluation_id,
         "hazard_score": score_res["hazard_score"],
         "risk_level": score_res["risk_level"],
-        "status": report_res["status"]
+        "status": "GENERATING_REPORTS"
     }

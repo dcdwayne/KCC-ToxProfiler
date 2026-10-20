@@ -132,7 +132,8 @@
         <!-- 動態文獻列表區 -->
         <div class="list-container" v-if="activeKCC">
           <div class="list-controls">
-            <h4 class="list-title">{{ activeKCC }} 相關文獻結果共 {{ currentPapers.length }} 筆：</h4>
+            <h4 class="list-title">
+              <span class="list-contents">{{ activeKCC }}</span> 相關文獻結果共 <span class="list-contents">{{ currentPapers.length }}</span> 筆：</h4>
             <div class="sort-options">
               <span>排序：</span>
               <button 
@@ -499,10 +500,10 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-/* 1. 調小上方 margin (從 40px 改為 16px)，讓大標題更靠近導覽列 */
+/* 1. 調小上方 margin (從 40px 改為 20px)，讓大標題更靠近導覽列 */
 .review-page {
   max-width: 1200px;
-  margin: 16px auto 40px auto;
+  margin: 20px auto 40px auto;
   padding: 0 20px;
 }
 
@@ -576,14 +577,15 @@ onMounted(async () => {
 }
 
 .header-zh {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 800;
   color: #2c3e50;
   letter-spacing: 0.5px;
+  padding: 3px;
 }
 
 .header-en {
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--dark-color);
   letter-spacing: 1px;
@@ -595,6 +597,7 @@ onMounted(async () => {
   color: #444;
   font-weight: bold;
   font-size: 14.5px;
+  padding: 4px;
 }
 
 .inline-row {
@@ -699,7 +702,7 @@ onMounted(async () => {
   color: var(--white);
   border-color: #1a1e29;
   padding: 12px 28px;
-  font-size: 16px;
+  font-size: 15px;
 }
 
 .action-btn.submit-analysis:hover {
@@ -742,7 +745,7 @@ onMounted(async () => {
 }
 
 .banner-en {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--dark-color);
   letter-spacing: 1.2px;
@@ -795,9 +798,16 @@ onMounted(async () => {
 
 .list-title {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
   color: #333;
   font-weight: 800;
+}
+
+.list-contents {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--dark-color);
+  letter-spacing: 1px;
 }
 
 .sort-options {

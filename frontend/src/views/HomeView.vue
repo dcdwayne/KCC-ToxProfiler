@@ -239,8 +239,8 @@ const submitFilter = async () => {
 <style scoped>
 .home-view {
   max-width: 800px;
-  /* 修改點 2：將原本 40px auto 改為上距 16px，拉近與 navbar 的距離 */
-  margin: 16px auto 40px auto;
+  /* 修改點 2：將原本 40px auto 改為上距 20px，拉近與 navbar 的距離 */
+  margin: 20px auto 40px auto;
   padding: 0 20px;
 }
 
