@@ -82,7 +82,7 @@
         <div class="filter-action-row">
           <button 
             class="action-btn reload-btn" 
-            :disabled="isProcessingFilter" 
+            :disabled="isProcessingFilter || !isCurrentKccReady" 
             @click="reloadCurrentKCC"
             title="將目前選中的 KC 類別恢復為初始召回的所有文獻"
           >
@@ -90,7 +90,7 @@
           </button>
           <button 
             class="action-btn apply-filter" 
-            :disabled="isProcessingFilter" 
+            :disabled="isProcessingFilter || !isCurrentKccReady" 
             @click="applyAdvancedFilter"
           >
             送出篩選
@@ -105,27 +105,49 @@
           <div class="pool-title-banner">
             <span class="banner-zh">證據池</span>
             <span class="banner-en">KC EVALUATION EVIDENCE</span>
+            <!-- 即時檢索進度提示膠囊 -->
+            <span v-if="evalStatus === 'RETRIEVING'" class="retrieving-pill">
+              <span class="pulse-dot"></span>
+              AI 正在逐一檢索與重排證據池 ({{ completedKccCount }} / 10)...
+            </span>
+            <transition name="badge-pop">
+              <span v-if="showAllReadyBanner" class="all-ready-pill">
+                ✨ 10 KCC 證據池全數建置完成！
+              </span>
+            </transition>
           </div>
           <button 
             class="action-btn submit-analysis" 
-            :disabled="isRunningAnalysis"
+            :disabled="isRunningAnalysis || evalStatus === 'RETRIEVING'"
             @click="goToMetaAnalysis"
+            :title="evalStatus === 'RETRIEVING' ? '請等待 10 個 KC 類別全數檢索完畢後即可執行統合分析' : '點擊執行統合分析'"
           >
-            {{ isRunningAnalysis ? '統合算分與生成報告中...' : '執行統合分析' }}
+            {{ isRunningAnalysis ? '統合算分與生成報告中...' : (evalStatus === 'RETRIEVING' ? `證據池建置中 (${completedKccCount}/10)` : '執行統合分析') }}
           </button>
         </div>
 
-        <!-- 10 KCCs 按鈕區 -->
+        <!-- 10 KCCs 按鈕區 (支援：反灰未就緒 -> 流光檢索中 -> 資料準備好無到有彈出特效) -->
         <div class="kcc-grid">
           <button 
             v-for="kcc in kccCategories" 
             :key="kcc.name"
             class="kcc-btn"
-            :class="{ active: activeKCC === kcc.name }"
+            :class="{
+              active: activeKCC === kcc.name && kcc.is_ready,
+              'kcc-pending': !kcc.is_ready && !kcc.is_processing,
+              'kcc-processing': !kcc.is_ready && kcc.is_processing,
+              'kcc-just-ready': recentlyReadyKccs.includes(kcc.id)
+            }"
+            :disabled="!kcc.is_ready"
             @click="selectKCC(kcc.name)"
           >
+            <!-- 剛完成瞬間浮現的閃耀微標籤 -->
+            <span v-if="recentlyReadyKccs.includes(kcc.id)" class="just-ready-badge">✨ READY</span>
+
             {{ kcc.name }}<br>
-            <span class="kcc-count">({{ kcc.count }})</span>
+            <span v-if="kcc.is_ready" class="kcc-count count-pop">({{ kcc.count }})</span>
+            <span v-else-if="kcc.is_processing" class="kcc-status-text processing-text">⏳ 檢索重排中...</span>
+            <span v-else class="kcc-status-text pending-text">(待檢索...)</span>
           </button>
         </div>
 
@@ -139,23 +161,32 @@
               <button 
                 class="chip-btn small" 
                 :class="{ active: currentSort === 'source' }"
+                :disabled="!isCurrentKccReady"
                 @click="changeSort('source')"
               >資料來源</button>
               <button 
                 class="chip-btn small" 
                 :class="{ active: currentSort === 'quartile' }"
+                :disabled="!isCurrentKccReady"
                 @click="changeSort('quartile')"
               >期刊排名</button>
               <button 
                 class="chip-btn small" 
                 :class="{ active: currentSort === 'rerank' }"
+                :disabled="!isCurrentKccReady"
                 @click="changeSort('rerank')"
               >適配度</button>
             </div>
           </div>
 
+          <!-- 當目前選中的 KC 還在背景檢索中時，顯示質感載入骨架提示 -->
+          <div v-if="!isCurrentKccReady" class="retrieving-list-box">
+            <div class="spinner-ring"></div>
+            <p>正在針對 <strong>{{ activeKCC }}</strong> 執行語意切片向量召回與 Cross-Encoder 重排，完成後將自動呈現文獻...</p>
+          </div>
+
           <!-- 文獻列表 (一頁顯示 ITEMS_PER_PAGE 篇) -->
-          <div v-if="paginatedPapers.length > 0" class="paper-list">
+          <transition-group v-else-if="paginatedPapers.length > 0" name="paper-fade" tag="div" class="paper-list">
             <SystematicReviewList 
               v-for="(paper, index) in paginatedPapers" 
               :key="paper.evidence_id"
@@ -164,13 +195,13 @@
               @view-details="openModal"
               @remove-paper="removePaper"
             />
-          </div>
+          </transition-group>
           <div v-else class="empty-list-box">
             目前 {{ activeKCC }} 在此篩選條件下無保留文獻（可點擊左側「重新載入」恢復原始召回文獻）。
           </div>
           
           <!-- 頁碼點擊功能：« 首頁 01 02 03 最後 » (融入系統色系) -->
-          <div class="pagination-bar" v-if="totalPages > 1">
+          <div class="pagination-bar" v-if="isCurrentKccReady && totalPages > 1">
             <button 
               class="page-nav-btn" 
               :disabled="currentPage === 1"
@@ -213,7 +244,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import SystematicReviewList from '../components/SystematicReviewList.vue'
 import PaperDetailModal from '../components/PaperDetailModal.vue'
@@ -243,19 +274,27 @@ const filters = reactive({
   journalRanks: []
 })
 
-// 10 KCC 狀態與當前選中的 KCC
+// 評估單目前狀態 ('RETRIEVING' | 'REVIEWING' | 'COMPLETED') 與完成進度
+const evalStatus = ref('RETRIEVING')
+const completedKccCount = ref(0)
+const showAllReadyBanner = ref(false)
+
+// 紀錄剛從「未完成 (false)」變成「準備完成 (true)」的 KCC ID，用來觸發無到有的閃耀彈出特效
+const recentlyReadyKccs = ref([])
+
+// 10 KCC 狀態與當前選中的 KCC (預設初始為反灰未就緒 is_ready: false)
 const activeKCC = ref('ELECTROPHILIC')
 const kccCategories = ref([
-  { id: '01', name: 'ELECTROPHILIC', count: 0 },
-  { id: '02', name: 'GENOTOXIC', count: 0 },
-  { id: '03', name: 'ALTERS DNA REPAIR', count: 0 },
-  { id: '04', name: 'EPIGENETIC ALTERATIONS', count: 0 },
-  { id: '05', name: 'OXIDATIVE STRESS', count: 0 },
-  { id: '06', name: 'CHRONIC INFLAMMATION', count: 0 },
-  { id: '07', name: 'IMMUNOSUPPRESSIVE', count: 0 },
-  { id: '08', name: 'RECEPTOR-MEDIATED EFFECTS', count: 0 },
-  { id: '09', name: 'IMMORTALIZATION', count: 0 },
-  { id: '10', name: 'CELL PROLIFERATION/DEATH', count: 0 }
+  { id: '01', name: 'ELECTROPHILIC', count: 0, is_ready: false, is_processing: true },
+  { id: '02', name: 'GENOTOXIC', count: 0, is_ready: false, is_processing: false },
+  { id: '03', name: 'ALTERS DNA REPAIR', count: 0, is_ready: false, is_processing: false },
+  { id: '04', name: 'EPIGENETIC ALTERATIONS', count: 0, is_ready: false, is_processing: false },
+  { id: '05', name: 'OXIDATIVE STRESS', count: 0, is_ready: false, is_processing: false },
+  { id: '06', name: 'CHRONIC INFLAMMATION', count: 0, is_ready: false, is_processing: false },
+  { id: '07', name: 'IMMUNOSUPPRESSIVE', count: 0, is_ready: false, is_processing: false },
+  { id: '08', name: 'RECEPTOR-MEDIATED EFFECTS', count: 0, is_ready: false, is_processing: false },
+  { id: '09', name: 'IMMORTALIZATION', count: 0, is_ready: false, is_processing: false },
+  { id: '10', name: 'CELL PROLIFERATION/DEATH', count: 0, is_ready: false, is_processing: false }
 ])
 
 const currentPapers = ref([])
@@ -269,6 +308,14 @@ const isRunningAnalysis = ref(false)
 const isModalOpen = ref(false)
 const isLoadingModal = ref(false)
 const selectedPaperDetail = ref(null)
+
+let summaryPollTimer = null
+
+// 判斷目前選中的 KCC 是否已經準備完成
+const isCurrentKccReady = computed(() => {
+  const found = kccCategories.value.find(k => k.name === activeKCC.value)
+  return found ? Boolean(found.is_ready) : false
+})
 
 // --- 分頁計算邏輯 ---
 const totalPages = computed(() => {
@@ -328,15 +375,66 @@ const resetFilterInputs = () => {
   filters.journalRanks = []
 }
 
+// 觸發單一 KC 按鈕「從反灰無資料 -> 資料準備好」的閃耀特效 (持續 1.6 秒)
+const triggerJustReadyEffect = (kccId) => {
+  if (!recentlyReadyKccs.value.includes(kccId)) {
+    recentlyReadyKccs.value.push(kccId)
+    setTimeout(() => {
+      recentlyReadyKccs.value = recentlyReadyKccs.value.filter(id => id !== kccId)
+    }, 1600)
+  }
+}
+
 // --- API 呼叫函式 ---
 
-// 1. 載入 10 個 KCC 的文獻數量
-const fetchKccSummary = async () => {
+// 1. 載入 10 個 KCC 的文獻數量與各別就緒狀態 (支援逐一點亮特效)
+const fetchKccSummary = async (isInitialLoad = false) => {
   try {
     const res = await fetch(`${API_BASE_URL}/review/${evaluationId.value}/summary`)
     if (!res.ok) throw new Error('無法取得 10 KCC 統計摘要')
     const data = await res.json()
+
+    // 比對哪些 KCC 是剛剛從「未就緒 (false)」變成「就緒 (true)」
+    const oldReadyMap = {}
+    kccCategories.value.forEach(k => {
+      oldReadyMap[k.id] = k.is_ready
+    })
+
+    let activeKccJustBecameReady = false
+
+    data.kcc_categories.forEach(newKcc => {
+      const wasReady = oldReadyMap[newKcc.id]
+      if (!wasReady && newKcc.is_ready && !isInitialLoad) {
+        triggerJustReadyEffect(newKcc.id)
+        if (newKcc.name === activeKCC.value) {
+          activeKccJustBecameReady = true
+        }
+      }
+    })
+
+    const prevStatus = evalStatus.value
+    evalStatus.value = data.status
+    completedKccCount.value = data.completed_kcc_count ?? 10
     kccCategories.value = data.kcc_categories
+
+    // 若當前選中的 KC 剛完成檢索，立即自動載入它的文獻列表！
+    if (activeKccJustBecameReady) {
+      await fetchKccPapers()
+    }
+
+    // 若全部 10 個 KCC 都剛檢索完成，停止輪詢並顯示完成提示
+    if (data.status !== 'RETRIEVING') {
+      if (summaryPollTimer) {
+        clearInterval(summaryPollTimer)
+        summaryPollTimer = null
+      }
+      if (prevStatus === 'RETRIEVING' && !isInitialLoad) {
+        showAllReadyBanner.value = true
+        setTimeout(() => {
+          showAllReadyBanner.value = false
+        }, 4000)
+      }
+    }
   } catch (err) {
     console.error('載入 KCC 摘要失敗:', err)
   }
@@ -344,6 +442,10 @@ const fetchKccSummary = async () => {
 
 // 2. 載入當前選中 KCC 的文獻列表
 const fetchKccPapers = async () => {
+  if (!isCurrentKccReady.value) {
+    currentPapers.value = []
+    return
+  }
   try {
     const params = new URLSearchParams({
       kcc_name: activeKCC.value,
@@ -363,8 +465,10 @@ const fetchKccPapers = async () => {
   }
 }
 
-// 點擊切換 KCC 類別按鈕
+// 點擊切換 KCC 類別按鈕 (僅已準備完成的 KC 可點擊)
 const selectKCC = async (name) => {
+  const target = kccCategories.value.find(k => k.name === name)
+  if (!target || !target.is_ready) return
   activeKCC.value = name
   await fetchKccPapers()
 }
@@ -495,10 +599,21 @@ const goToMetaAnalysis = async () => {
   }
 }
 
-// 頁面初始化載入
+// 頁面初始化載入：若發現評估單尚在 RETRIEVING 狀態，啟動每 1.5 秒輪詢一次，逐一點亮 KCC！
 onMounted(async () => {
-  await fetchKccSummary()
-  await fetchKccPapers()
+  await fetchKccSummary(true)
+  if (isCurrentKccReady.value) {
+    await fetchKccPapers()
+  }
+  if (evalStatus.value === 'RETRIEVING') {
+    summaryPollTimer = setInterval(() => {
+      fetchKccSummary(false)
+    }, 1500)
+  }
+})
+
+onUnmounted(() => {
+  if (summaryPollTimer) clearInterval(summaryPollTimer)
 })
 </script>
 
@@ -654,7 +769,7 @@ onMounted(async () => {
   transition: all 0.2s;
 }
 
-.chip-btn:hover {
+.chip-btn:hover:not(:disabled) {
   border-color: var(--dark-color);
 }
 
@@ -695,7 +810,7 @@ onMounted(async () => {
   border: 1.5px solid var(--dark-color);
 }
 
-.action-btn.reload-btn:hover {
+.action-btn.reload-btn:hover:not(:disabled) {
   background-color: var(--light-color);
 }
 
@@ -713,11 +828,11 @@ onMounted(async () => {
   font-size: 15px;
 }
 
-.action-btn.submit-analysis:hover {
+.action-btn.submit-analysis:hover:not(:disabled) {
   background-color: #1a1e29;
 }
 
-.action-btn:active {
+.action-btn:active:not(:disabled) {
   opacity: 0.75;
   transform: scale(0.96);
   transition: all 0.1s ease;
@@ -734,6 +849,8 @@ onMounted(async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 
 /* 2. 證據池 KC EVALUATION EVIDENCE 標題視覺升級 */
@@ -742,7 +859,8 @@ onMounted(async () => {
   align-items: baseline;
   gap: 12px;
   border-left: 5px solid var(--dark-color);
-  padding-left: 14px;
+  padding-left: 14px; 
+  flex-wrap: wrap;
 }
 
 .banner-zh {
@@ -757,6 +875,46 @@ onMounted(async () => {
   font-weight: 800;
   color: var(--dark-color);
   letter-spacing: 1.2px;
+  text-align:end;
+}
+
+/* 頂部進度提示膠囊與全數完成徽章 */
+.retrieving-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #1b1e29;
+  color: #f6d32d;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #f6d32d;
+  animation: dotPulse 1s infinite ease-in-out;
+}
+
+@keyframes dotPulse {
+  0%, 100% { transform: scale(0.8); opacity: 0.5; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+.all-ready-pill {
+  display: inline-flex;
+  align-items: center;
+  background: linear-gradient(135deg, #e6fcf5 0%, #c3fae8 100%);
+  color: #087f5b;
+  border: 1px solid #63e6be;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 5px 14px;
+  border-radius: 20px;
 }
 
 /* 10 KCC 按鈕網格 */
@@ -768,21 +926,24 @@ onMounted(async () => {
 }
 
 .kcc-btn {
+  position: relative;
   background-color: #ffffff;
-  border: 1px solid #ffffff;
+  border: 1.5px solid #ffffff;
   border-radius: 10px;
   padding: 10px 8px;
   text-align: center;
-  font-size: 13.5px;
+  font-size: 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.28s cubic-bezier(0.25, 0.8, 0.25, 1);
   font-weight: 800;
   color: #555;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
 }
 
-.kcc-btn:hover {
+.kcc-btn:hover:not(:disabled) {
   border-color: var(--primary-color);
+  transform: translateY(-1px);
 }
 
 .kcc-btn.active {
@@ -791,10 +952,93 @@ onMounted(async () => {
   border-color: var(--dark-color);
 }
 
+/* 狀態 A：反灰未就緒 (待檢索) */
+.kcc-btn.kcc-pending {
+  background-color: #e2e8f0;
+  border-color: #cbd5e1;
+  color: #94a3b8;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* 狀態 B：目前正輪到該 KC 執行檢索與重排 (流光掃描呼吸特效) */
+.kcc-btn.kcc-processing {
+  background: linear-gradient(110deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmerScan 1.5s infinite linear;
+  border: 1.5px dashed var(--dark-color);
+  color: #475569;
+  cursor: wait;
+}
+
+@keyframes shimmerScan {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 狀態 C：資料準備完成瞬間的「無到有」立體彈跳與光暈擴散特效 */
+.kcc-btn.kcc-just-ready {
+  animation: kccReadyPop 0.9s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border-color: #10b981 !important;
+}
+
+@keyframes kccReadyPop {
+  0% {
+    transform: scale(0.88);
+    background-color: #d1fae5;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 12px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  }
+}
+
+.just-ready-badge {
+  position: absolute;
+  top: 3px;
+  right: 5px;
+  font-size: 9.5px;
+  font-weight: 900;
+  color: #059669;
+  background-color: #d1fae5;
+  padding: 1px 5px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+}
+
 .kcc-count {
   font-size: 12.5px;
   display: inline-block;
   margin-top: 2px;
+}
+
+.count-pop {
+  animation: numberPopIn 0.35s ease-out;
+}
+
+@keyframes numberPopIn {
+  0% { opacity: 0; transform: translateY(5px) scale(0.8); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.kcc-status-text {
+  font-size: 11.5px;
+  display: inline-block;
+  margin-top: 3px;
+  font-weight: 700;
+}
+
+.processing-text {
+  color: var(--dark-color);
+}
+
+.pending-text {
+  color: #94a3b8;
 }
 
 .list-controls {
@@ -830,6 +1074,42 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+/* 文獻列表無到有滑入動畫 */
+.paper-fade-enter-active {
+  transition: all 0.35s ease-out;
+}
+.paper-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.retrieving-list-box {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1.5px dashed var(--dark-color);
+  border-radius: 14px;
+  padding: 44px 24px;
+  text-align: center;
+  color: #334155;
+  font-weight: bold;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.spinner-ring {
+  width: 32px;
+  height: 32px;
+  border: 3.5px solid #cbd5e1;
+  border-top-color: var(--dark-color);
+  border-radius: 50%;
+  animation: spinRing 0.85s infinite linear;
+}
+
+@keyframes spinRing {
+  to { transform: rotate(360deg); }
 }
 
 .empty-list-box {

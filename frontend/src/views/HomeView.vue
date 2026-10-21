@@ -112,7 +112,7 @@
         :disabled="isSubmitting" 
         @click="submitFilter"
       >
-        {{ isSubmitting ? '正在執行切片、向量化與 10 KCC 重排...' : '確定送出篩選' }}
+        {{ isSubmitting ? '正在啟動證據池檢索...' : '確定送出篩選' }}
       </button>
     </div>
 
@@ -208,7 +208,7 @@ const checkPreviewCount = async () => {
 }
 
 // API 2: 點擊『確定送出篩選』(PUT /api/search/submit)
-// 更新 papers.is_selected -> 執行 Chunking & Embedding -> 執行 10 KCC 召回與重排
+// 更新 papers.is_selected -> 背景啟動 Chunking & Embedding 與 10 KCC 召回重排 -> 立即跳轉至 SystematicReview.vue
 const submitFilter = async () => {
   if (previewCount.value === 0) {
     alert('目前篩選條件下共有 0 篇文獻，請放寬篩選條件後再送出！')
@@ -238,7 +238,7 @@ const submitFilter = async () => {
     }
 
     const data = await res.json()
-    // 將本次動態產生的 evaluation_id 存入 localStorage 並帶入路由參數跳轉
+    // 將本次動態產生的 evaluation_id 存入 localStorage 並帶入路由參數立即跳轉至下一頁
     localStorage.setItem('current_evaluation_id', data.evaluation_id)
     router.push({ path: '/review', query: { eval_id: data.evaluation_id } })
   } catch (err) {
@@ -399,6 +399,7 @@ input[type="number"] {
   outline: none;
 }
 
+/* 修改點 3：提高選擇器權重至 input[type="number"].year-input，確保 dark-color 邊框生效 */
 input[type="number"].year-input {
   width: 72px;
   font-weight: bold;

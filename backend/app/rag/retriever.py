@@ -6,11 +6,15 @@
 - 第一階段（餘弦相似度召回）：在 PostgreSQL 中用 pgvector 找出屬於該化學物質、符合篩選條件、且餘弦相似度 >= min_cosine（預設設為 0.38）的前 25 個文獻片段。
 - 第二階段（Cross-Encoder 重排）：將召回的片段送入 rerank-2 進行深度語意交叉評分，過濾出 rerank_score >= min_rerank（預設 0.40）的高品質片段。
 - 第三階段（依論文歸納寫入表九）：將同一篇論文命中的多個片段整合成一筆 EvaluationEvidence 紀錄，把片段座標與對應的 KCx-y 存入 matched_chunks JSONB 欄位，並寫入第九張表 (evaluation_evidence)。
+
+優化流程：
+我們讓檢索器支援傳入已建立好的 evaluation_id，並且每當一個 KC（如 KC 01）完成召回與 Cross-Encoder 重排寫入資料庫後，立刻將該 kcc_id 記錄到 evaluations.filter_criteria["completed_kccs"] 中。這樣前端就能精準知道哪幾個 KC 已經準備好了（包含完成後為 0 篇文獻的 KC，也能正確從反灰變成 (0)！）
 """
 # backend/app/rag/retriever.py
 from collections import defaultdict
 from sqlalchemy import text
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.models import (
     TargetChemical, KccQuery, Evaluation, EvaluationEvidence
@@ -26,11 +30,13 @@ def build_evidence_pool_for_chemical(
     min_cosine: float = 0.38,
     recall_top_k_per_query: int = 25,
     min_rerank: float = 0.40,
-    max_papers_per_kcc: int = 15
+    max_papers_per_kcc: int = 15,
+    evaluation_id: int | None = None
 ) -> Evaluation:
     """
     執行完整的 RAG 檢索 (Cosine Similarity) + 重排 (Cross-Encoder Rerank)，
     並將結果寫入第十張表 (evaluations) 與第九張表 (evaluation_evidence)。
+    支援傳入已建立之 evaluation_id，每完成一個 KC 即時寫入進度供前端逐一點亮按鈕！
     """
     # 1. 取得該 CAS 號碼的主顯示名稱
     chem = (
@@ -41,22 +47,34 @@ def build_evidence_pool_for_chemical(
 
     chemical_name = chem.chemical_name if chem else cas_number
 
-    # 2. 在【第十張表：evaluations】建立一筆新的評估任務紀錄
-    new_eval = Evaluation(
-        cas_number=cas_number,
-        chemical_name=chemical_name,
-        filter_criteria={
-            "quartiles": quartiles,
-            "model_categories": model_categories,
-            "min_cosine": min_cosine,
-            "min_rerank": min_rerank
-        },
-        status="REVIEWING"
-    )
-    db.add(new_eval)
-    db.commit()
-    db.refresh(new_eval)
-    print(f"📋 已於 [表十: evaluations] 建立評估單 (ID: {new_eval.id}) | 目標: {chemical_name} ({cas_number})")
+    # 2. 取得或建立【第十張表：evaluations】評估任務紀錄
+    if evaluation_id is not None:
+        new_eval = db.query(Evaluation).filter_by(id=evaluation_id).first()
+        if not new_eval:
+            raise ValueError(f"找不到 Evaluation ID: {evaluation_id}")
+    else:
+        new_eval = Evaluation(
+            cas_number=cas_number,
+            chemical_name=chemical_name,
+            filter_criteria={
+                "quartiles": quartiles,
+                "model_categories": model_categories,
+                "min_cosine": min_cosine,
+                "min_rerank": min_rerank,
+                "completed_kccs": [],
+                "current_kcc": "01"
+            },
+            status="RETRIEVING"
+        )
+        db.add(new_eval)
+        db.commit()
+        db.refresh(new_eval)
+
+    print(f"📋 開始檢索評估單 (ID: {new_eval.id}) | 目標: {chemical_name} ({cas_number})")
+
+    # 初始化進度追蹤陣列
+    criteria_data = dict(new_eval.filter_criteria or {})
+    completed_kccs = list(criteria_data.get("completed_kccs", []))
 
     # 3. 讀取【第七張表：kcc_queries】所有 KCC 關鍵片段，依 kcc_id (01~10) 分組
     all_kcc_queries = db.query(KccQuery).order_by(KccQuery.kcc_id, KccQuery.query_code).all()
@@ -82,6 +100,12 @@ def build_evidence_pool_for_chemical(
 
     # 4. 針對 10 個 KCC 依序執行「多查詢向量召回 + Cross-Encoder 重排」
     for (kcc_id, kcc_title), sub_queries in kcc_groups.items():
+        # 更新當前正在處理的 KCC 代碼，讓前端顯示掃描動畫
+        criteria_data["current_kcc"] = kcc_id
+        new_eval.filter_criteria = dict(criteria_data)
+        flag_modified(new_eval, "filter_criteria")
+        db.commit()
+
         print(f"🔎 正在檢索 KC {kcc_id} ({kcc_title}) - 共 {len(sub_queries)} 組子關鍵片段...")
         
         # 用來歸納同一篇論文在此 KCC 命中的所有切片: {paper_id: {...}}
@@ -161,7 +185,7 @@ def build_evidence_pool_for_chemical(
                 # 記錄該切片命中的明細 (供前端 Modal 標記與 Hover 顯示)
                 paper_hits[pid]["matched_chunks"].append({
                     "chunk_index": cand["chunk_index"],
-                    "chunk_text": cand["chunk_text"], # 👈 補上這一行
+                    "chunk_text": cand["chunk_text"],
                     "query_code": sq.query_code,
                     "query_text": sq.query_text,
                     "cosine_score": cos_score,
@@ -197,8 +221,22 @@ def build_evidence_pool_for_chemical(
             db.add(evidence_obj)
             total_evidence_rows += 1
 
+        # 標記此 KCC 已經準備完成，立刻 Commit 讓前端輪詢抓到最新進度！
+        if kcc_id not in completed_kccs:
+            completed_kccs.append(kcc_id)
+        criteria_data["completed_kccs"] = list(completed_kccs)
+        new_eval.filter_criteria = dict(criteria_data)
+        flag_modified(new_eval, "filter_criteria")
         db.commit()
+
         print(f"   ✅ KC {kcc_id} 完成！共納入 {len(sorted_papers)} 篇高適配度文獻至證據池。")
+
+    # 6. 全部 10 個 KCC 檢索完畢，將狀態更新為 REVIEWING
+    criteria_data["current_kcc"] = None
+    new_eval.filter_criteria = dict(criteria_data)
+    flag_modified(new_eval, "filter_criteria")
+    new_eval.status = "REVIEWING"
+    db.commit()
 
     print(f"🎉 [表九: evaluation_evidence] 建置完成！評估單 #{new_eval.id} 共寫入 {total_evidence_rows} 筆 KCC 文獻證據。")
     return new_eval

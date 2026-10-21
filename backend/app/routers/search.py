@@ -1,11 +1,11 @@
 # backend/app/routers/search.py
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel
-from sqlalchemy import or_, and_, not_
+from sqlalchemy import or_, not_
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models import Paper, TargetChemical
+from app.models import Paper, TargetChemical, Evaluation
 from app.rag.retriever import build_evidence_pool_for_chemical
 from scripts.run_chunk_embedding import chunk_and_embed_papers
 
@@ -146,10 +146,39 @@ def preview_filtered_papers(
 
 
 # =====================================================================
+# 背景執行任務：切片 + 向量化 + 10 KCC 逐一召回與重排
+# =====================================================================
+def _run_rag_pipeline_in_background(
+    evaluation_id: int,
+    cas_number: str,
+    quartiles: list[str] | None
+):
+    bg_db = SessionLocal()
+    try:
+        # 1. 對尚未切分向量的入選文獻執行 Chunking & Embedding
+        chunk_and_embed_papers(bg_db, cas_number=cas_number, only_selected=True)
+
+        # 2. 依序針對 KC 01 ~ KC 10 執行餘弦相似度召回與 Cross-Encoder 重排
+        build_evidence_pool_for_chemical(
+            db=bg_db,
+            cas_number=cas_number,
+            quartiles=quartiles,
+            model_categories=None,
+            evaluation_id=evaluation_id
+        )
+    except Exception as e:
+        print(f"❌ 背景執行 RAG 檢索與重排失敗 (Evaluation #{evaluation_id}): {e}")
+        eval_obj = bg_db.query(Evaluation).filter_by(id=evaluation_id).first()
+        if eval_obj:
+            eval_obj.status = "REVIEWING"
+            bg_db.commit()
+    finally:
+        bg_db.close()
+
+
+# =====================================================================
 # API 2: 點擊『確定送出篩選』
-# 1. 將符合條件之 papers.is_selected 更新為 True (其餘為 False)
-# 2. 對入選文獻執行 Chunking & Embedding (若尚未向量化)
-# 3. 執行 10 KCC 餘弦相似度召回與 Cross-Encoder 重排，產生評估單 (Evaluation)
+# 立即標記 papers.is_selected = True 並建立評估單，將 RAG 交給背景執行，讓前端瞬間跳轉！
 # =====================================================================
 class SubmitFilterRequest(BaseModel):
     chemical: str
@@ -161,7 +190,11 @@ class SubmitFilterRequest(BaseModel):
 
 
 @router.put("/submit")
-def submit_filter_and_run_rag(payload: SubmitFilterRequest, db: Session = Depends(get_db)):
+def submit_filter_and_run_rag(
+    payload: SubmitFilterRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db)
+):
     cas_number, eng_name = resolve_chemical_cas(db, payload.chemical)
 
     # 步驟 0: 先將該化學物質所有文獻的 is_selected 重置為 False
@@ -191,34 +224,41 @@ def submit_filter_and_run_rag(payload: SubmitFilterRequest, db: Session = Depend
     db.commit()
     print(f"✅ 已將 {eng_name} ({cas_number}) 共 {len(selected_ids)} 篇文獻標記為 is_selected = True！")
 
-    # 步驟 2: 針對 is_selected = True 的文獻執行『切片 (Chunking)』與『索引 (Embedding)』
-    new_chunks_count = chunk_and_embed_papers(db, cas_number=cas_number, only_selected=True)
-
-    # 步驟 3: 針對 is_selected = True 的文獻執行『10 KCC 召回與 Cross-Encoder 重排』
-    eval_record = build_evidence_pool_for_chemical(
-        db=db,
+    # 步驟 2: 立即在【第十張表：evaluations】建立一筆 status="RETRIEVING" 的評估單
+    new_eval = Evaluation(
         cas_number=cas_number,
-        quartiles=None if "All" in payload.journal_ranks else payload.journal_ranks,
-        model_categories=None
+        chemical_name=eng_name,
+        filter_criteria={
+            "chemical_zh": payload.chemical,
+            "start_year": payload.start_year,
+            "end_year": payload.end_year,
+            "min_citations": payload.min_citations,
+            "doc_type": payload.doc_type,
+            "journal_ranks": payload.journal_ranks,
+            "selected_paper_count": len(selected_ids),
+            "completed_kccs": [],
+            "current_kcc": "CHUNKING"
+        },
+        status="RETRIEVING"
+    )
+    db.add(new_eval)
+    db.commit()
+    db.refresh(new_eval)
+
+    # 步驟 3: 將耗時的 Chunking + Embedding + 10 KCC 重排排入背景任務
+    quartiles_filter = None if "All" in payload.journal_ranks else payload.journal_ranks
+    background_tasks.add_task(
+        _run_rag_pipeline_in_background,
+        new_eval.id,
+        cas_number,
+        quartiles_filter
     )
 
-    # 將首頁篩選參數也完整記錄進表十 (evaluations.filter_criteria)
-    eval_record.filter_criteria = {
-        "chemical_zh": payload.chemical,
-        "start_year": payload.start_year,
-        "end_year": payload.end_year,
-        "min_citations": payload.min_citations,
-        "doc_type": payload.doc_type,
-        "journal_ranks": payload.journal_ranks,
-        "selected_paper_count": len(selected_ids)
-    }
-    db.commit()
-
     return {
-        "message": "初步篩選與 10 KCC RAG 重排完成",
-        "evaluation_id": eval_record.id,
+        "message": "初步篩選已送出，正在背景建立 10 KCC 證據池",
+        "evaluation_id": new_eval.id,
         "cas_number": cas_number,
         "chemical_name": eng_name,
         "selected_paper_count": len(selected_ids),
-        "new_chunks_embedded": new_chunks_count
+        "status": "RETRIEVING"
     }

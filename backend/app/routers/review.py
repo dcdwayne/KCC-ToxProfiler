@@ -41,7 +41,7 @@ QUARTILE_SORT_ORDER = {"Q1": 1, "Q2": 2, "Q3": 3, "Q4": 4, "Unranked": 5}
 
 
 # =====================================================================
-# API 1: 取得評估單基本資訊與 10 個 KCC 的文獻數量 (is_selected = True)
+# API 1: 取得評估單基本資訊與 10 個 KCC 的文獻數量及即時檢索狀態 (is_ready / is_processing)
 # =====================================================================
 @router.get("/{evaluation_id}/summary")
 def get_review_summary(evaluation_id: int, db: Session = Depends(get_db)):
@@ -69,20 +69,31 @@ def get_review_summary(evaluation_id: int, db: Session = Depends(get_db)):
     )
     count_map = {kcc_id: cnt for kcc_id, cnt in counts_rows}
 
-    kcc_categories = [
-        {
+    # 判斷各 KCC 是否已由背景任務檢索完成
+    criteria = eval_obj.filter_criteria or {}
+    completed_kccs = set(criteria.get("completed_kccs", []))
+    current_kcc = criteria.get("current_kcc")
+    is_all_done = (eval_obj.status != "RETRIEVING")
+
+    kcc_categories = []
+    for k_id, k_title in kcc_defs:
+        ready_flag = True if is_all_done else (k_id in completed_kccs)
+        processing_flag = False if is_all_done else (current_kcc == k_id)
+        kcc_categories.append({
             "id": k_id,
             "name": k_title,
-            "count": count_map.get(k_id, 0)
-        }
-        for k_id, k_title in kcc_defs
-    ]
+            "count": count_map.get(k_id, 0),
+            "is_ready": ready_flag,
+            "is_processing": processing_flag
+        })
 
     return {
         "evaluation_id": eval_obj.id,
         "cas_number": eval_obj.cas_number,
         "chemical_name": eval_obj.chemical_name,
         "status": eval_obj.status,
+        "current_kcc": current_kcc,
+        "completed_kcc_count": 10 if is_all_done else len(completed_kccs),
         "kcc_categories": kcc_categories
     }
 
