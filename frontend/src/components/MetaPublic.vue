@@ -1,6 +1,6 @@
 <template>
   <div class="report-wrapper">
-    <!-- 瀏覽器風格主題標籤頁 (參考圖片設計、無叉叉) -->
+    <!-- 瀏覽器風格主題標籤頁 (無叉叉) -->
     <div class="browser-tab-bar">
       <button
         v-for="(tab, idx) in tabs"
@@ -30,7 +30,7 @@
           <!-- 打字結束後的完成特效徽章 -->
           <div v-if="isFinished" class="completion-badge">
             <span class="sparkle-icon">✨</span>
-            <span>AI 科普風險報告生成完畢</span>
+            <span>科普風險報告生成完畢</span>
           </div>
         </div>
       </div>
@@ -160,7 +160,10 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
+/* 鎖定 100% 滿版寬度，防止左右伸縮晃動 */
 .report-wrapper {
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
 }
@@ -174,6 +177,8 @@ onUnmounted(() => {
   padding: 10px 14px 0 14px;
   border-radius: 12px 12px 0 0;
   overflow-x: auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .folder-tab {
@@ -226,6 +231,8 @@ onUnmounted(() => {
   min-height: 360px;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .report-header {
@@ -285,13 +292,7 @@ onUnmounted(() => {
   border-radius: 20px;
   font-size: 13px;
   font-weight: 800;
-  animation: badgePop 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   box-shadow: 0 3px 10px rgba(9, 146, 104, 0.12);
-}
-
-@keyframes badgePop {
-  0% { transform: scale(0.7); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
 }
 
 .report-content {
@@ -374,13 +375,5 @@ onUnmounted(() => {
   justify-content: center;
   font-weight: bold;
   flex-shrink: 0;
-}
-
-.pop-fade-enter-active {
-  transition: all 0.4s ease-out;
-}
-.pop-fade-enter-from {
-  opacity: 0;
-  transform: translateY(10px);
 }
 </style>

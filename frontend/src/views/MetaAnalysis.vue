@@ -25,7 +25,7 @@
 
     <!-- 頁籤導覽列：當報告尚未生成完畢時，民眾版本與專家版本反灰不可按 -->
     <nav class="tab-nav">
-      <button class="info-btn" title="檢視 10 KCC 證據權重儀表板與 AI 雙版本評估報告">!</button>
+      <button class="info-btn" title="點擊查看使用說明" @click="isGuideOpen = true">!</button>
 
       <button 
         class="action-btn tab-btn" 
@@ -77,6 +77,7 @@
         :hazardScore="metaInfo.hazard_score"
       />
     </section>
+    <InfoGuideModal :isOpen="isGuideOpen" page="meta" @close="isGuideOpen = false" />
   </main>
 </template>
 
@@ -86,7 +87,9 @@ import { useRoute } from 'vue-router'
 import MetaPublic from '../components/MetaPublic.vue'
 import MetaExpert from '../components/MetaExpert.vue'
 import MetaDashboard from '../components/MetaDashboard.vue'
+import InfoGuideModal from '../components/InfoGuideModal.vue'
 
+const isGuideOpen = ref(false)
 const route = useRoute()
 const API_BASE_URL = `http://${window.location.hostname}:8000/api`
 
@@ -195,10 +198,30 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.meta-page { max-width: 1200px; margin: 16px auto 40px auto; padding: 0 20px; }
+/* 修改 1：強制鎖定 1200px 寬度，不隨內部打字機字數多寡而收縮 */
+.meta-page {
+  width: 100%;
+  max-width: 1200px;
+  min-width: min(1200px, calc(100vw - 40px));
+  margin: 16px auto 40px auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
 
-.meta-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
-.main-title { font-family: 'Georgia', serif; font-size: 38px; font-weight: 900; margin: 0 0 8px 0; letter-spacing: -1px; color: #222; }
+.meta-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.main-title {
+  color: #1b1e29;
+  font-size: 38px;
+  margin-top: 0px;
+  margin-bottom: 12px;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-shadow: 
+    1px 1px 0px #f6d32d,
+    2px 2px 0px #f6d32d,
+    3px 3px 0px #e25740,
+    4px 4px 0px #f6d32d;
+}
 .title-en { color: #e74c3c; }
 .target-info { display: flex; flex-direction: column; gap: 4px; }
 .label { font-size: 12px; color: #555; letter-spacing: 1px; font-weight: bold; }
@@ -230,8 +253,8 @@ onUnmounted(() => {
 
 .tab-nav { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
 .info-btn {
-  width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--dark-color);
-  background-color: var(--light-color); color: var(--dark-color); font-weight: 900; cursor: help;
+  width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--dark-color);
+  background-color: var(--light-color); color: var(--dark-color); font-weight: 950; cursor: help;
 }
 
 .action-btn.tab-btn {
@@ -275,7 +298,10 @@ onUnmounted(() => {
   margin-left: 4px;
 }
 
+/* 修改 2：確保內容區與內部報告組件永遠撐滿 100% 寬度 */
 .content-area {
+  width: 100%;
+  box-sizing: border-box;
   background-color: #f8f9fa;
   padding: 24px;
   border-radius: 12px;

@@ -12,7 +12,7 @@
       <aside class="sidebar-filter">
         <!-- 說明按鈕與標題完美水平對齊，並具備區塊標題質感 -->
         <div class="section-header-bar">
-          <button class="info-btn" title="針對右側目前選中的 KC 類別進行深度條件過濾">!</button>
+          <button class="info-btn" title="點擊查看使用說明" @click="isGuideOpen = true">!</button>
           <div class="header-text-group">
             <span class="header-zh">進階篩選</span>
             <span class="header-en">ADVANCED FILTER</span>
@@ -208,6 +208,7 @@
       :loading="isLoadingModal"
       @close="closeModal" 
     />
+    <InfoGuideModal :isOpen="isGuideOpen" page="review" @close="isGuideOpen = false" />
   </main>
 </template>
 
@@ -216,7 +217,9 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import SystematicReviewList from '../components/SystematicReviewList.vue'
 import PaperDetailModal from '../components/PaperDetailModal.vue'
+import InfoGuideModal from '../components/InfoGuideModal.vue'
 
+const isGuideOpen = ref(false)
 const router = useRouter()
 const route = useRoute()
 
@@ -512,12 +515,17 @@ onMounted(async () => {
 }
 
 .main-title {
-  font-family: 'Georgia', serif;
+  color: #1b1e29;
   font-size: 38px;
+  margin-top: 4px;
+  margin-bottom: 20px;
   font-weight: 900;
-  margin: 0;
-  letter-spacing: -0.5px;
-  color: #222;
+  letter-spacing: 1.5px;
+  text-shadow: 
+    1px 1px 0px #f6d32d,
+    2px 2px 0px #f6d32d,
+    3px 3px 0px #e25740,
+    4px 4px 0px #f6d32d;
 }
 
 .title-en {

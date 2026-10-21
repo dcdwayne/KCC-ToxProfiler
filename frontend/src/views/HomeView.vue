@@ -11,7 +11,11 @@
       <!-- 化學物質選擇 (單選，共五個) -->
       <div class="form-group">
         <div class="label-with-icon">
-          <button class="info-btn" title="請選擇要進行文獻回顧的化學物質">!</button>
+          <button 
+            class="info-btn" 
+            title="點擊查看本頁使用說明"
+            @click="isGuideOpen = true"
+          >!</button>
           <label>化學物質名稱 Target Chemicals</label>
         </div>
         <div class="chip-container">
@@ -111,19 +115,29 @@
         {{ isSubmitting ? '正在執行切片、向量化與 10 KCC 重排...' : '確定送出篩選' }}
       </button>
     </div>
+
+    <!-- 共用使用說明彈出視窗 (傳入 page="home") -->
+    <InfoGuideModal 
+      :isOpen="isGuideOpen" 
+      page="home" 
+      @close="isGuideOpen = false" 
+    />
   </main>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
+import InfoGuideModal from '../components/InfoGuideModal.vue'
 
 const router = useRouter()
 
 // 後端 API 基礎網址 (自動對應本地端或部署環境的主機 IP)
 const API_BASE_URL = `http://${window.location.hostname}:8000/api`
 
-// 五個目標化學物質
+// 控制使用說明視窗開關
+const isGuideOpen = ref(false)
+
 const chemicalOptions = ref(['苯駢芘', '丙烯醯胺', '塑化劑', '戴奧辛', '全氟辛酸'])
 const selectedChemical = ref('苯駢芘')
 
@@ -239,22 +253,28 @@ const submitFilter = async () => {
 <style scoped>
 .home-view {
   max-width: 800px;
-  /* 修改點 2：將原本 40px auto 改為上距 20px，拉近與 navbar 的距離 */
   margin: 20px auto 40px auto;
   padding: 0 20px;
 }
 
 .header-section {
   text-align: center;
-  margin-bottom: 30px; /* 由 30px 調小為 20px，最後維持 30 px */
+  margin-bottom: 30px;
 }
 
+/* 主標題：#1b1e29 字體搭配 #e25740 立體塊狀陰影 */
 .main-title {
-  color: #343434;
-  font-size: 32px;
-  margin-top: 16px;       /* 修改點 2：設定為0，可以消除 h2 預設的上方外距 */
+  color: #1b1e29;
+  font-size: 36px;
+  margin-top: 16px;
   margin-bottom: 20px;
-  font-weight: bold;
+  font-weight: 900;
+  letter-spacing: 1.5px;
+  text-shadow: 
+    1px 1px 0px #f6d32d,
+    2px 2px 0px #f6d32d,
+    3px 3px 0px #e25740,
+    4px 4px 0px #f6d32d;
 }
 
 .sub-title {
@@ -286,11 +306,24 @@ const submitFilter = async () => {
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  border: 1px solid var(--dark-color);
-  background-color: transparent;
+  border: 1.5px solid var(--dark-color);
+  background-color: var(--light-color);
   color: var(--dark-color);
-  font-weight: bold;
-  cursor: help;
+  font-weight: 900;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.info-btn:hover {
+  background-color: var(--dark-color);
+  color: #ffffff;
+  transform: scale(1.08);
 }
 
 .chip-container {
@@ -366,7 +399,6 @@ input[type="number"] {
   outline: none;
 }
 
-/* 修改點 3：提高選擇器權重至 input[type="number"].year-input，確保 dark-color 邊框生效 */
 input[type="number"].year-input {
   width: 72px;
   font-weight: bold;
