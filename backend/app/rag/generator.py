@@ -20,10 +20,24 @@ load_dotenv(ROOT_DIR / ".env")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 LLM_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
+# =====================================================================
+# 👇👇👇 【各版本輸入 LLM 的文獻篇數調整區】可在此自由調整每個 KCC 要放入幾篇文獻 👇👇👇
+# - PUBLIC_MAX_PAPERS_PER_KCC: 民眾版每個 KCC 最多放入幾篇文獻 (預設 3 篇，加速科普報告生成)
+# - EXPERT_MAX_PAPERS_PER_KCC: 專家版每個 KCC 最多放入幾篇文獻 (預設 5 篇)
+# =====================================================================
+PUBLIC_MAX_PAPERS_PER_KCC = 3
+EXPERT_MAX_PAPERS_PER_KCC = 5
 
-def _build_rag_evidence_context(db: Session, evaluation_id: int, kcc_scores: list[dict]) -> str:
+
+def _build_rag_evidence_context(
+    db: Session,
+    evaluation_id: int,
+    kcc_scores: list[dict],
+    max_papers_per_kcc: int | None = None
+) -> str:
     """
     將表九中 is_selected=True 的文獻與命中切片，整理成帶有 APA 7th (FirstAuthor et al., Year) 與 PMID 的文字供 LLM 引用。
+    - max_papers_per_kcc: 若傳入整數 (如 3)，則每個 KCC 只取前 3 高分文獻；若為 None，則將所有選定的文獻全部放入！
     """
     rows = (
         db.query(EvaluationEvidence, Paper.article_title, Paper.pub_year)
@@ -85,12 +99,15 @@ def _build_rag_evidence_context(db: Session, evaluation_id: int, kcc_scores: lis
             f"Human: {kcc['model_breakdown'].get('Human', 0)}, In Vivo: {kcc['model_breakdown'].get('In Vivo', 0)}, In Vitro: {kcc['model_breakdown'].get('In Vitro', 0)})"
         )
         if grouped[kid]:
-            context_lines.extend(grouped[kid][:5])
+            # 根據 max_papers_per_kcc 決定放入幾篇文獻 (None 代表全部放入)
+            selected_group = grouped[kid][:max_papers_per_kcc] if max_papers_per_kcc is not None else grouped[kid]
+            context_lines.extend(selected_group)
         else:
             context_lines.append("  - [無符合門檻之文獻證據 (0 papers)]")
         context_lines.append("")
 
     return "\n".join(context_lines)
+
 
 def _generate_with_retry(client: genai.Client, model: str, prompt: str, max_retries: int = 4) -> str:
     """
@@ -114,9 +131,14 @@ def _generate_with_retry(client: genai.Client, model: str, prompt: str, max_retr
                 raise
 
 
-def generate_evaluation_reports(db: Session, evaluation_id: int) -> dict:
+# =========================================================================
+# 獨立函式 1：先產生【民眾版本報告 (Public Report)】並立即寫入資料庫解鎖按鈕
+# =========================================================================
+def generate_public_report(db: Session, evaluation_id: int) -> str:
     """
-    生成「民眾版本 (public_report)」與「專家版本 (expert_report)」，並更新至第十張表 (evaluations)。
+    單獨生成「民眾版本 (public_report)」：
+    每個 KCC 預設僅取前 PUBLIC_MAX_PAPERS_PER_KCC (3) 篇文獻，生成完畢後立即 Commit 至資料庫，
+    讓前端『民眾版本』按鈕率先解鎖，無須等待專家版！
     """
     if not GEMINI_API_KEY:
         raise ValueError("❌ 找不到 GEMINI_API_KEY！請於根目錄 .env 檔案中設定。")
@@ -126,9 +148,15 @@ def generate_evaluation_reports(db: Session, evaluation_id: int) -> dict:
         raise ValueError(f"請先對 Evaluation ID {evaluation_id} 執行 calculate_evaluation_scores 算分！")
 
     client = genai.Client(api_key=GEMINI_API_KEY)
-    evidence_context = _build_rag_evidence_context(db, evaluation_id, eval_obj.kcc_scores)
+    
+    # 民眾版使用精簡版文獻池 (每個 KCC 取前 PUBLIC_MAX_PAPERS_PER_KCC 篇)
+    public_evidence_context = _build_rag_evidence_context(
+        db,
+        evaluation_id,
+        eval_obj.kcc_scores,
+        max_papers_per_kcc=PUBLIC_MAX_PAPERS_PER_KCC
+    )
 
-    # 1. 產生【民眾版本報告 (Public Report)】
     public_prompt = f"""
 你是一位專業且善於科普溝通的毒理學與公共衛生專家。請根據以下針對化學物質「{eval_obj.chemical_name} (CAS: {eval_obj.cas_number})」的系統性文獻回顧數據，撰寫一份給一般民眾閱讀的【大眾版風險評估報告】（使用繁體中文，語氣清晰易懂，支援 Markdown 格式）。
 
@@ -136,8 +164,8 @@ def generate_evaluation_reports(db: Session, evaluation_id: int) -> dict:
 - 目標化學物質：{eval_obj.chemical_name} (CAS: {eval_obj.cas_number})
 - 總體危害分數 (Hazard Score)：{eval_obj.hazard_score} / 100 ({eval_obj.risk_level})
 
-【10 大致癌關鍵特徵 (10 KCCs) 檢索摘要】
-{evidence_context}
+【10 大致癌關鍵特徵 (10 KCCs) 檢索摘要（每個機轉取代表性前 {PUBLIC_MAX_PAPERS_PER_KCC} 篇）】
+{public_evidence_context}
 
 請嚴格依照以下三個結構撰寫（必須使用 Markdown 標題 `### 1.`、`### 2.`、`### 3.`，以便前端切分標籤頁）：
 ### 1. 化學物質介紹
@@ -151,10 +179,44 @@ def generate_evaluation_reports(db: Session, evaluation_id: int) -> dict:
 - 清楚說明最終得出的 **危害分數 {eval_obj.hazard_score}/100 ({eval_obj.risk_level})** 代表什麼健康風險意義與總結建議。
 """
 
-    print("🤖 正在呼叫 LLM 生成【民眾版本報告 (Public Report)】...")
+    print(f"🤖 [1/2] 正在呼叫 LLM 生成【民眾版本報告 (每個 KCC 取最多 {PUBLIC_MAX_PAPERS_PER_KCC} 篇文獻)】...")
     public_report_text = _generate_with_retry(client, LLM_MODEL, public_prompt)
 
-    # 2. 產生【專家版本報告 (Expert Report)】
+    # 立即寫入資料庫並 Commit，讓前端輪詢馬上偵測到民眾版已完成！
+    eval_obj.public_report = public_report_text
+    eval_obj.status = "GENERATING_EXPERT"
+    db.commit()
+    db.refresh(eval_obj)
+    print("   ✅ 【民眾版本報告】已生成並寫入資料庫！前端按鈕已可解鎖。")
+
+    return public_report_text
+
+
+# =========================================================================
+# 獨立函式 2：接著產生【專家版本報告 (Expert Report)】(納入每個 KCC 的 5 篇選定文獻)
+# =========================================================================
+def generate_expert_report(db: Session, evaluation_id: int) -> str:
+    """
+    單獨生成「專家版本 (expert_report)」：
+    將專家精鍊後保留 (is_selected=True) 納入每個 KCC 的 5 篇選定文獻放入 Prompt，生成完畢後更新狀態為 COMPLETED。
+    """
+    if not GEMINI_API_KEY:
+        raise ValueError("❌ 找不到 GEMINI_API_KEY！請於根目錄 .env 檔案中設定。")
+
+    eval_obj = db.query(Evaluation).filter_by(id=evaluation_id).first()
+    if not eval_obj or not eval_obj.kcc_scores:
+        raise ValueError(f"請先對 Evaluation ID {evaluation_id} 執行 calculate_evaluation_scores 算分！")
+
+    client = genai.Client(api_key=GEMINI_API_KEY)
+
+    # 專家版放入 5 篇選定文獻 (EXPERT_MAX_PAPERS_PER_KCC = 5)
+    expert_evidence_context = _build_rag_evidence_context(
+        db,
+        evaluation_id,
+        eval_obj.kcc_scores,
+        max_papers_per_kcc=EXPERT_MAX_PAPERS_PER_KCC
+    )
+
     expert_prompt = f"""
 你是一位資深法規毒理學家（Regulatory Toxicologist），專精於 IARC 10 Key Characteristics of Carcinogens (10 KCCs) 與風險評估。
 請根據以下經由 RAG 檢索、Cross-Encoder 重排與專家篩選後的實證文獻池（Evidence Pool），為「{eval_obj.chemical_name} (CAS: {eval_obj.cas_number})」撰寫一份嚴謹的【專家版毒理學統合分析報告】（使用專業繁體中文，專有名詞附註英文，支援 Markdown 格式）。
@@ -167,8 +229,8 @@ def generate_evaluation_reports(db: Session, evaluation_id: int) -> dict:
 - 總體危害分數 (Hazard Score)：{eval_obj.hazard_score} / 100 ({eval_obj.risk_level})
 - 分數定義標準：75~100% 為 Strong/High Evidence (證據明確)；50~74% 為 Moderate Evidence (中等證據)；20~49% 為 Weak Evidence (證據薄弱)；0~19% 為 Inadequate Evidence (證據不足)。
 
-【實證文獻池明細 (10 KCCs Evidence Pool)】
-{evidence_context}
+【實證文獻池明細 (10 KCCs Evidence Pool 每個機轉取代表性前 {EXPERT_MAX_PAPERS_PER_KCC} 篇）】
+{expert_evidence_context}
 
 請嚴格依照以下四個核心章節撰寫報告（必須使用 Markdown 標題 `### 1.`、`### 2.`、`### 3.`、`### 4.`，以便前端切分標籤頁）：
 
@@ -188,20 +250,31 @@ def generate_evaluation_reports(db: Session, evaluation_id: int) -> dict:
 - 總結為何該化學物質獲得 **{eval_obj.hazard_score} / 100 ({eval_obj.risk_level})** 的危害分數，交代主要得分來源與證據權重（Weight of Evidence, WoE）最終定論。
 """
 
-    print("🧬 正在呼叫 LLM 生成【專家版本報告 (Expert Report)】...")
+    print(f"🧬 [2/2] 正在呼叫 LLM 生成【專家版本報告 (每個 KCC 取最多 {EXPERT_MAX_PAPERS_PER_KCC} 篇文獻)】...")
     expert_report_text = _generate_with_retry(client, LLM_MODEL, expert_prompt)
 
-    # 3. 將生成完畢的報告寫入【第十張表：evaluations】並將狀態改為 COMPLETED
-    eval_obj.public_report = public_report_text
+    # 寫入資料庫並將狀態改為 COMPLETED
     eval_obj.expert_report = expert_report_text
     eval_obj.status = "COMPLETED"
     db.commit()
     db.refresh(eval_obj)
+    print("   ✅ 【專家版本報告】已生成並寫入資料庫！全數報告皆已完成。")
 
+    return expert_report_text
+
+
+def generate_evaluation_reports(db: Session, evaluation_id: int) -> dict:
+    """
+    依序執行「1. 民眾版本 (先跑並先存檔)」與「2. 專家版本 (後跑並存檔)」。
+    """
+    public_text = generate_public_report(db, evaluation_id)
+    expert_text = generate_expert_report(db, evaluation_id)
+
+    eval_obj = db.query(Evaluation).filter_by(id=evaluation_id).first()
     return {
-        "evaluation_id": eval_obj.id,
-        "status": eval_obj.status,
-        "hazard_score": eval_obj.hazard_score,
-        "public_report": public_report_text,
-        "expert_report": expert_report_text
+        "evaluation_id": evaluation_id,
+        "status": eval_obj.status if eval_obj else "COMPLETED",
+        "hazard_score": eval_obj.hazard_score if eval_obj else None,
+        "public_report": public_text,
+        "expert_report": expert_text
     }

@@ -142,11 +142,16 @@ const selectSubTab = (idx) => {
   activeSubTabIdx.value = idx
 }
 
-watch(currentTab, (newTab) => {
-  if (newTab) {
-    startTypewriter(newTab.content_html)
+// 關鍵修正：只監聽 content_html 實際字串內容是否改變 (newHtml !== oldHtml)
+// 就算父組件重新渲染，只要章節內容一樣，打字機就絕對不會被中斷或重跑！
+watch(
+  () => currentTab.value?.content_html,
+  (newHtml, oldHtml) => {
+    if (newHtml && newHtml !== oldHtml) {
+      startTypewriter(newHtml)
+    }
   }
-})
+)
 
 onMounted(() => {
   if (currentTab.value) {

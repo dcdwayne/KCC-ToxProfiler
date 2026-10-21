@@ -108,7 +108,7 @@
             <!-- 即時檢索進度提示膠囊 -->
             <span v-if="evalStatus === 'RETRIEVING'" class="retrieving-pill">
               <span class="pulse-dot"></span>
-              AI 正在逐一檢索與重排證據池 ({{ completedKccCount }} / 10)...
+                正在逐一檢索與重排證據池 ({{ completedKccCount }} / 10)...
             </span>
             <transition name="badge-pop">
               <span v-if="showAllReadyBanner" class="all-ready-pill">

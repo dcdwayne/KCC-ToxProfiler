@@ -23,7 +23,7 @@
       </div>
     </header>
 
-    <!-- 頁籤導覽列：當報告尚未生成完畢時，民眾版本與專家版本反灰不可按 -->
+    <!-- 頁籤導覽列：民眾版本與專家版本各自獨立解鎖，並具備流光掃描與 ✨ READY 無到有彈跳特效 -->
     <nav class="tab-nav">
       <button class="info-btn" title="點擊查看使用說明" @click="isGuideOpen = true">!</button>
 
@@ -35,26 +35,40 @@
         分析成果儀表板
       </button>
 
+      <!-- 民眾版本按鈕：先跑，完成後立即亮起並觸發 ✨ READY 特效 -->
       <button 
         class="action-btn tab-btn" 
-        :class="{ active: activeTab === 'Public', disabled: !hasReports }" 
-        :disabled="!hasReports"
+        :class="{
+          active: activeTab === 'Public' && hasPublicReport,
+          'tab-processing': !hasPublicReport,
+          'tab-just-ready': justReadyPublic
+        }" 
+        :disabled="!hasPublicReport"
         @click="switchTab('Public')"
-        :title="hasReports ? '點擊檢視民眾版科普風險報告' : 'AI 報告正在背景生成中，完成後即可點擊'"
+        :title="hasPublicReport ? '點擊檢視民眾版科普風險報告' : 'AI 正在優先生成民眾版報告，完成後即可點擊'"
       >
+        <span v-if="justReadyPublic" class="just-ready-badge">✨ READY</span>
         民眾版本
-        <span v-if="!hasReports" class="generating-tag">(生成中...)</span>
+        <span v-if="!hasPublicReport" class="generating-tag">⏳ 生成中...</span>
       </button>
 
+      <!-- 專家版本按鈕：民眾版跑完後接著跑，完成後觸發 ✨ READY 特效 -->
       <button 
         class="action-btn tab-btn" 
-        :class="{ active: activeTab === 'Expert', disabled: !hasReports }" 
-        :disabled="!hasReports"
+        :class="{
+          active: activeTab === 'Expert' && hasExpertReport,
+          'tab-pending': !hasExpertReport && !hasPublicReport,
+          'tab-processing': !hasExpertReport && hasPublicReport,
+          'tab-just-ready': justReadyExpert
+        }" 
+        :disabled="!hasExpertReport"
         @click="switchTab('Expert')"
-        :title="hasReports ? '點擊檢視專家版法規毒理報告' : 'AI 報告正在背景生成中，完成後即可點擊'"
+        :title="hasExpertReport ? '點擊檢視專家版法規毒理報告' : 'AI 正在背景生成專家版報告，完成後即可點擊'"
       >
+        <span v-if="justReadyExpert" class="just-ready-badge">✨ READY</span>
         專家版本
-        <span v-if="!hasReports" class="generating-tag">(生成中...)</span>
+        <span v-if="!hasExpertReport && hasPublicReport" class="generating-tag">⏳ 生成中...</span>
+        <span v-else-if="!hasExpertReport" class="generating-tag">(待生成...)</span>
       </button>
     </nav>
 
@@ -65,13 +79,13 @@
         :kccData="kccData" 
       />
       <MetaPublic 
-        v-if="activeTab === 'Public' && hasReports" 
+        v-if="activeTab === 'Public' && hasPublicReport" 
         :tabs="publicTabs"
         :chemicalName="metaInfo.chemical_name"
         :hazardScore="metaInfo.hazard_score"
       />
       <MetaExpert 
-        v-if="activeTab === 'Expert' && hasReports" 
+        v-if="activeTab === 'Expert' && hasExpertReport" 
         :tabs="expertTabs"
         :chemicalName="metaInfo.chemical_name"
         :hazardScore="metaInfo.hazard_score"
@@ -108,16 +122,23 @@ const metaInfo = reactive({
 })
 
 const kccData = ref([])
-const hasReports = ref(false)
+
+// 拆分為兩個獨立狀態：民眾版與專家版各自獨立解鎖！
+const hasPublicReport = ref(false)
+const hasExpertReport = ref(false)
+
+// 控制按鈕「從無到有」完成瞬間的翠綠彈跳與 ✨ READY 閃耀特效
+const justReadyPublic = ref(false)
+const justReadyExpert = ref(false)
+
 const publicTabs = ref([])
 const expertTabs = ref([])
 
 let pollTimer = null
 
 const switchTab = (tabName) => {
-  if ((tabName === 'Public' || tabName === 'Expert') && !hasReports.value) {
-    return
-  }
+  if (tabName === 'Public' && !hasPublicReport.value) return
+  if (tabName === 'Expert' && !hasExpertReport.value) return
   activeTab.value = tabName
 }
 
@@ -131,6 +152,14 @@ const getRiskTextClass = (level) => {
   if (level === 'MODERATE RISK') return 'risk-moderate'
   if (level === 'LOW RISK') return 'risk-low'
   return 'risk-high'
+}
+
+// 觸發按鈕「資料準備完成」的閃耀彈跳特效 (持續 1.8 秒)
+const triggerButtonReadyEffect = (targetRef) => {
+  targetRef.value = true
+  setTimeout(() => {
+    targetRef.value = false
+  }, 1800)
 }
 
 // API 1: 取得儀表板與基礎分數資料 (瞬間返回)
@@ -152,8 +181,8 @@ const fetchDashboardData = async () => {
   }
 }
 
-// API 2: 取得民眾版與專家版分段報告資料
-const fetchReportsData = async () => {
+// API 2: 取得民眾版與專家版分段報告資料 (支援民眾版先好就先解鎖，且不重複覆寫已載入的報告！)
+const fetchReportsData = async (isInitialLoad = false) => {
   try {
     const res = await fetch(`${API_BASE_URL}/meta/${evaluationId.value}/reports`)
     if (!res.ok) throw new Error('無法取得報告資料')
@@ -166,16 +195,41 @@ const fetchReportsData = async () => {
     metaInfo.risk_level = data.risk_level
     metaInfo.status = data.status
 
-    if (data.has_reports && data.public_tabs.length > 0 && data.expert_tabs.length > 0) {
-      hasReports.value = true
-      publicTabs.value = data.public_tabs
-      expertTabs.value = data.expert_tabs
+    // 1. 檢查【民眾版本】是否已生成完畢
+    if (data.has_public_report && data.public_tabs && data.public_tabs.length > 0) {
+      // 關鍵修正：只有當「原本還沒載入過民眾版」時，才寫入 publicTabs 並觸發特效！
+      // 避免等待專家版期間每 2 秒輪詢重複覆寫 publicTabs 導致打字機一直重頭開始
+      if (!hasPublicReport.value) {
+        if (!isInitialLoad) {
+          triggerButtonReadyEffect(justReadyPublic)
+        }
+        publicTabs.value = data.public_tabs
+        hasPublicReport.value = true
+      }
+    } else {
+      hasPublicReport.value = false
+    }
+
+    // 2. 檢查【專家版本】是否已生成完畢
+    if (data.has_expert_report && data.expert_tabs && data.expert_tabs.length > 0) {
+      // 同樣只有當「原本還沒載入過專家版」時才寫入 expertTabs
+      if (!hasExpertReport.value) {
+        if (!isInitialLoad) {
+          triggerButtonReadyEffect(justReadyExpert)
+        }
+        expertTabs.value = data.expert_tabs
+        hasExpertReport.value = true
+      }
+    } else {
+      hasExpertReport.value = false
+    }
+
+    // 當兩個版本都已經生成完畢時，停止輪詢
+    if (hasPublicReport.value && hasExpertReport.value) {
       if (pollTimer) {
         clearInterval(pollTimer)
         pollTimer = null
       }
-    } else {
-      hasReports.value = false
     }
   } catch (err) {
     console.error('載入報告資料失敗:', err)
@@ -184,11 +238,13 @@ const fetchReportsData = async () => {
 
 onMounted(async () => {
   await fetchDashboardData()
-  await fetchReportsData()
+  await fetchReportsData(true)
 
-  // 若報告尚在背景生成中，每 3 秒自動檢查一次，生成完畢後立即解鎖按鈕
-  if (!hasReports.value) {
-    pollTimer = setInterval(fetchReportsData, 3000)
+  // 若民眾版或專家版尚在背景生成中，每 2 秒自動檢查一次，誰先生成完畢就先觸發特效並解鎖！
+  if (!hasPublicReport.value || !hasExpertReport.value) {
+    pollTimer = setInterval(() => {
+      fetchReportsData(false)
+    }, 2000)
   }
 })
 
@@ -258,16 +314,18 @@ onUnmounted(() => {
 }
 
 .action-btn.tab-btn {
+  position: relative;
   background-color: #ffffff;
   color: #333;
-  border: 1px solid var(--dark-color);
-  padding: 8px 32px;
+  border: 1.5px solid var(--dark-color);
+  padding: 10px 32px;
   border-radius: 8px;
   font-size: 16px;
   font-weight: bold;
   cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 140px;
+  transition: all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1);
+  min-width: 155px;
+  overflow: hidden;
 }
 
 .action-btn.tab-btn.active,
@@ -282,9 +340,8 @@ onUnmounted(() => {
   transition: all 0.1s ease;
 }
 
-/* 報告尚未生成完畢時的反灰禁用樣式 */
-.action-btn.tab-btn.disabled,
-.action-btn.tab-btn:disabled {
+/* 狀態 A：反灰排隊等待中 (例如民眾版還在跑時，專家版處於待生成) */
+.action-btn.tab-btn.tab-pending {
   background-color: #e2e8f0;
   color: #94a3b8;
   border-color: #cbd5e1;
@@ -292,9 +349,60 @@ onUnmounted(() => {
   transform: none;
 }
 
+/* 狀態 B：目前正由 LLM 生成該版本報告中 (流光掃描呼吸特效) */
+.action-btn.tab-btn.tab-processing {
+  background: linear-gradient(110deg, #e2e8f0 25%, #f8fafc 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: shimmerScan 1.5s infinite linear;
+  border: 1.5px dashed var(--dark-color);
+  color: #475569;
+  cursor: wait;
+  transform: none;
+}
+
+@keyframes shimmerScan {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 狀態 C：報告生成完畢瞬間的「無到有」立體彈跳與翠綠光暈特效 */
+.action-btn.tab-btn.tab-just-ready {
+  animation: kccReadyPop 0.95s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  border-color: #10b981 !important;
+}
+
+@keyframes kccReadyPop {
+  0% {
+    transform: scale(0.88);
+    background-color: #d1fae5;
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 12px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  }
+}
+
+.just-ready-badge {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  font-size: 9px;
+  font-weight: 900;
+  color: #059669;
+  background-color: #d1fae5;
+  padding: 1px 5px;
+  border-radius: 6px;
+  letter-spacing: 0.3px;
+}
+
 .generating-tag {
   font-size: 12px;
-  font-weight: normal;
+  font-weight: 700;
   margin-left: 4px;
 }
 

@@ -9,7 +9,7 @@ from app.models import (
     Evaluation, EvaluationEvidence, Paper, PaperAuthor, PaperChunk, KccQuery
 )
 from app.rag.scorer import calculate_evaluation_scores
-from app.rag.generator import generate_evaluation_reports
+from app.rag.generator import generate_public_report, generate_expert_report
 
 router = APIRouter(prefix="/api/review", tags=["Systematic Review"])
 
@@ -374,10 +374,13 @@ def get_paper_modal_detail(
 
 
 def _run_llm_reports_in_background(evaluation_id: int):
-    """背景任務：獨立建立 DB Session 執行耗時的 LLM 雙報告生成"""
+    """背景任務：先跑民眾版 (完成即刻 Commit 解鎖按鈕)，再跑專家版"""
     bg_db = SessionLocal()
     try:
-        generate_evaluation_reports(bg_db, evaluation_id)
+        # 第一階段：先生成民眾版 (每個 KCC 僅取 3 篇，速度極快)
+        generate_public_report(bg_db, evaluation_id)
+        # 第二階段：接著生成專家版 (納入每個 KCC 僅取 5 篇選定文獻)
+        generate_expert_report(bg_db, evaluation_id)
     except Exception as e:
         print(f"❌ 背景生成報告失敗 (Evaluation #{evaluation_id}): {e}")
     finally:
@@ -387,7 +390,7 @@ def _run_llm_reports_in_background(evaluation_id: int):
 # =====================================================================
 # API 7: 點擊『執行統合分析』
 # 1. 立即同步計算 10 KCC 與 Hazard Score (僅需 0.05 秒)
-# 2. 將耗時的 LLM 報告生成交給 BackgroundTasks 在背景執行，讓前端立刻跳轉到 Meta 頁先看儀表板！
+# 2. 將耗時的 LLM 報告生成交給 BackgroundTasks 在背景依序執行 (民眾版 -> 專家版)
 # =====================================================================
 @router.post("/{evaluation_id}/analyze")
 def run_meta_analysis(
@@ -399,22 +402,22 @@ def run_meta_analysis(
     if not eval_obj:
         raise HTTPException(status_code=404, detail=f"找不到評估單 ID: {evaluation_id}")
 
-    # 1. 先將舊報告清空並標記為 GENERATING_REPORTS，讓前端知道報告正在生成中
+    # 1. 先將舊報告清空並標記為 GENERATING_PUBLIC，讓前端知道民眾版正在生成中
     eval_obj.public_report = None
     eval_obj.expert_report = None
-    eval_obj.status = "GENERATING_REPORTS"
+    eval_obj.status = "GENERATING_PUBLIC"
     db.commit()
 
     # 2. 立即計算 10 KCC 分數與總體危害分數 (瞬間完成)
     score_res = calculate_evaluation_scores(db, evaluation_id)
 
-    # 3. 排入背景任務生成民眾版與專家版報告
+    # 3. 排入背景任務依序生成民眾版與專家版報告
     background_tasks.add_task(_run_llm_reports_in_background, evaluation_id)
 
     return {
-        "message": "儀表板算分完成，LLM 報告已於背景啟動生成",
+        "message": "儀表板算分完成，LLM 報告已於背景啟動分段生成",
         "evaluation_id": evaluation_id,
         "hazard_score": score_res["hazard_score"],
         "risk_level": score_res["risk_level"],
-        "status": "GENERATING_REPORTS"
+        "status": "GENERATING_PUBLIC"
     }

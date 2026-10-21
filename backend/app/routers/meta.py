@@ -214,7 +214,8 @@ def get_meta_dashboard(evaluation_id: int, db: Session = Depends(get_db)):
         calculate_evaluation_scores(db, evaluation_id)
         db.refresh(eval_obj)
 
-    has_reports = bool(eval_obj.public_report and eval_obj.expert_report)
+    has_public = bool(eval_obj.public_report)
+    has_expert = bool(eval_obj.expert_report)
 
     return {
         "evaluation_id": eval_obj.id,
@@ -224,13 +225,15 @@ def get_meta_dashboard(evaluation_id: int, db: Session = Depends(get_db)):
         "hazard_score": eval_obj.hazard_score,
         "risk_level": eval_obj.risk_level,
         "status": eval_obj.status,
-        "has_reports": has_reports,
+        "has_public_report": has_public,
+        "has_expert_report": has_expert,
+        "has_reports": (has_public and has_expert),
         "kcc_data": eval_obj.kcc_scores
     }
 
 
 # =====================================================================
-# API 2: 取得民眾版與專家版分段標籤頁報告 (含 APA 7th 引用與 PMID Hover 資料)
+# API 2: 取得民眾版與專家版分段標籤頁報告 (支援民眾版先出來就先回傳！)
 # =====================================================================
 @router.get("/{evaluation_id}/reports")
 def get_meta_reports(evaluation_id: int, db: Session = Depends(get_db)):
@@ -238,16 +241,21 @@ def get_meta_reports(evaluation_id: int, db: Session = Depends(get_db)):
     if not eval_obj:
         raise HTTPException(status_code=404, detail=f"找不到評估單 ID: {evaluation_id}")
 
-    has_reports = bool(eval_obj.public_report and eval_obj.expert_report)
+    has_public = bool(eval_obj.public_report)
+    has_expert = bool(eval_obj.expert_report)
 
     public_tabs = []
     expert_tabs = []
 
-    if has_reports:
-        combined_text = f"{eval_obj.public_report}\n{eval_obj.expert_report}"
-        pmid_map = _build_pmid_to_apa_map(db, combined_text)
+    combined_text = f"{eval_obj.public_report or ''}\n{eval_obj.expert_report or ''}"
+    pmid_map = _build_pmid_to_apa_map(db, combined_text) if (has_public or has_expert) else {}
 
+    # 只要民眾版已經生成好，就先切分並回傳 public_tabs，不用等專家版！
+    if has_public:
         public_tabs = _split_markdown_into_tabs(eval_obj.public_report, pmid_map, is_expert=False)
+
+    # 專家版生成好時，再切分並回傳 expert_tabs
+    if has_expert:
         expert_tabs = _split_markdown_into_tabs(eval_obj.expert_report, pmid_map, is_expert=True)
 
     return {
@@ -258,7 +266,9 @@ def get_meta_reports(evaluation_id: int, db: Session = Depends(get_db)):
         "hazard_score": eval_obj.hazard_score,
         "risk_level": eval_obj.risk_level,
         "status": eval_obj.status,
-        "has_reports": has_reports,
+        "has_public_report": has_public,
+        "has_expert_report": has_expert,
+        "has_reports": (has_public and has_expert),
         "public_tabs": public_tabs,
         "expert_tabs": expert_tabs
     }
