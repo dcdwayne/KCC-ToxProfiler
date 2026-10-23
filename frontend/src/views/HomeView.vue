@@ -3,26 +3,34 @@
     <!-- 標題區 -->
     <header class="header-section">
       <h2 class="main-title">毒理學文獻條件檢索與危害辨識評估系統</h2>
-      <h3 class="sub-title">依據科學文獻資料，系統化致癌物之危害辨識評估流程</h3>
+      <div class="sub-title-banner">
+        <!--<span class="step-pill">STEP 01</span>-->
+        <h3 class="sub-title">依據科學文獻資料，系統化致癌物之危害辨識評估流程</h3>
+      </div>
     </header>
 
     <!-- 搜尋面板 -->
     <section class="search-panel">
       <!-- 化學物質選擇 (單選，共五個) -->
       <div class="form-group">
-        <div class="label-with-icon">
+        <!-- 對齊 SystematicReview.vue 左側標題列設計 (! 按鈕 + 中英雙語上下標題) -->
+        <div class="section-header-bar">
           <button 
             class="info-btn" 
             title="點擊查看本頁使用說明"
             @click="isGuideOpen = true"
           >!</button>
-          <label>化學物質名稱 Target Chemicals</label>
+          <div class="header-text-group">
+            <span class="header-zh">化學物質名稱</span>
+            <span class="header-en">TARGET CHEMICALS</span>
+          </div>
         </div>
-        <div class="chip-container">
+
+        <div class="chip-container chem-grid">
           <button 
             v-for="chem in chemicalOptions" 
             :key="chem"
-            class="chip-btn"
+            class="chip-btn chem-btn"
             :class="{ active: selectedChemical === chem }"
             @click="selectChemical(chem)"
           >
@@ -33,61 +41,88 @@
 
       <!-- 條件搜尋 -->
       <div class="condition-section">
-        <label class="section-label">初步條件搜尋 Preliminary Filter</label>
+        <!-- 對齊 SystematicReview.vue 證據池的左側垂直飾條標題風格 -->
+        <div class="pool-title-banner">
+          <span class="banner-zh">初步條件搜尋</span>
+          <span class="banner-en">PRELIMINARY FILTER</span>
+        </div>
         
-        <div class="form-row">
-          <span>出版年份：</span>
-          <span>從</span>
-          <input type="number" v-model.number="searchForm.startYear" placeholder="YYYY" class="year-input">
-          <span>至</span>
-          <input type="number" v-model.number="searchForm.endYear" placeholder="YYYY" class="year-input">
-          <span>年</span>
-        </div>
+        <div class="filter-box">
+          <div class="form-row">
+            <div class="row-label">
+              <span class="label-zh">出版年份</span>
+              <span class="label-en">Pub Year</span>
+            </div>
+            <div class="row-control">
+              <span class="ctrl-text">從</span>
+              <input type="number" v-model.number="searchForm.startYear" placeholder="YYYY" class="year-input">
+              <span class="ctrl-text">至</span>
+              <input type="number" v-model.number="searchForm.endYear" placeholder="YYYY" class="year-input">
+              <span class="ctrl-text">年</span>
+            </div>
+          </div>
 
-        <!-- 修正為單選：綁定 searchForm.minCitations -->
-        <div class="form-row">
-          <span>引用次數：被引用至少</span>
-          <button 
-            v-for="cite in [1, 3, 10, 20]" 
-            :key="cite"
-            class="chip-btn small"
-            :class="{ active: searchForm.minCitations === cite }"
-            @click="searchForm.minCitations = cite"
-          >
-            {{ cite }}
-          </button>
-          <span>次以上</span>
-        </div>
+          <!-- 修正為單選：綁定 searchForm.minCitations -->
+          <div class="form-row">
+            <div class="row-label">
+              <span class="label-zh">引用次數</span>
+              <span class="label-en">Citation Count</span>
+            </div>
+            <div class="row-control">
+              <span class="ctrl-text">被引用至少</span>
+              <button 
+                v-for="cite in [1, 3, 10, 20]" 
+                :key="cite"
+                class="chip-btn small"
+                :class="{ active: searchForm.minCitations === cite }"
+                @click="searchForm.minCitations = cite"
+              >
+                {{ cite }}
+              </button>
+              <span class="ctrl-text">次以上</span>
+            </div>
+          </div>
 
-        <div class="form-row">
-          <span>文獻類型：</span>
-          <label class="radio-label">
-            <input type="radio" value="Original Research" v-model="searchForm.docType">
-            Original Research
-          </label>
-          <label class="radio-label">
-            <input type="radio" value="Review" v-model="searchForm.docType">
-            Review
-          </label>
-          <label class="radio-label">
-            <input type="radio" value="All" v-model="searchForm.docType">
-            All
-          </label>
-        </div>
+          <div class="form-row">
+            <div class="row-label">
+              <span class="label-zh">文獻類型</span>
+              <span class="label-en">Document Type</span>
+            </div>
+            <div class="row-control radio-group">
+              <label class="radio-label" :class="{ selected: searchForm.docType === 'Original Research' }">
+                <input type="radio" value="Original Research" v-model="searchForm.docType">
+                Original Research
+              </label>
+              <label class="radio-label" :class="{ selected: searchForm.docType === 'Review' }">
+                <input type="radio" value="Review" v-model="searchForm.docType">
+                Review
+              </label>
+              <label class="radio-label" :class="{ selected: searchForm.docType === 'All' }">
+                <input type="radio" value="All" v-model="searchForm.docType">
+                All
+              </label>
+            </div>
+          </div>
 
-        <!-- 期刊排名：支援多選與 All 切換 -->
-        <div class="form-row">
-          <span>期刊排名：</span>
-          <div class="chip-container inline">
-            <button 
-              v-for="rank in ['Q1', 'Q2', 'Q3', 'Q4', 'All']" 
-              :key="rank"
-              class="chip-btn small"
-              :class="{ active: searchForm.journalRanks.includes(rank) }"
-              @click="toggleRank(rank)"
-            >
-              {{ rank }}
-            </button>
+          <!-- 期刊排名：支援多選與 All 切換 -->
+          <div class="form-row">
+            <div class="row-label">
+              <span class="label-zh">期刊排名</span>
+              <span class="label-en">Journal Rank</span>
+            </div>
+            <div class="row-control">
+              <div class="chip-container inline">
+                <button 
+                  v-for="rank in ['Q1', 'Q2', 'Q3', 'Q4', 'All']" 
+                  :key="rank"
+                  class="chip-btn small"
+                  :class="{ active: searchForm.journalRanks.includes(rank) }"
+                  @click="toggleRank(rank)"
+                >
+                  {{ rank }}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -99,13 +134,15 @@
         </button>
         
         <div class="result-box" :class="{ 'has-data': previewCount !== null }">
-          <span v-if="previewCount === null">點擊上方按鈕預估文獻數量</span>
-          <span v-else>目前條件共篩選出 <strong>{{ previewCount }}</strong> 篇相關文獻</span>
+          <span v-if="previewCount === null">點擊上方按鈕預估符合條件之文獻數量</span>
+          <span v-else>
+            目前條件共篩選出 <strong class="count-highlight">{{ previewCount }}</strong> 篇相關文獻
+          </span>
         </div>
       </div>
     </section>
 
-    <!-- 確定送出 -->
+    <!-- 確定送出 (維持指定的深色 #1a1e29 跳轉按鈕風格) -->
     <div class="submit-section">
       <button 
         class="action-btn submit" 
@@ -254,22 +291,22 @@ const submitFilter = async () => {
 
 <style scoped>
 .home-view {
-  max-width: 800px;
+  max-width: 820px;
   margin: 20px auto 40px auto;
   padding: 0 20px;
 }
 
 .header-section {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 12px;
 }
 
 /* 主標題：#1b1e29 字體搭配 #e25740 立體塊狀陰影 */
 .main-title {
   color: #1b1e29;
   font-size: 36px;
-  margin-top: 16px;
-  margin-bottom: 20px;
+  margin-top: 2px;
+  margin-bottom: 12px;
   font-weight: 900;
   letter-spacing: 1.5px;
   text-shadow: 
@@ -279,34 +316,55 @@ const submitFilter = async () => {
     4px 4px 0px #f6d32d;
 }
 
-.sub-title {
-  color: #555;
-  font-size: 20px;
-  margin-top: 0;
-  font-weight: bold;
+.sub-title-banner {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background-color: rgba(255, 255, 255, 0.55);
+  padding: 6px 18px;
+  border-radius: 20px;
 }
 
+.step-pill {
+  background-color: #1b1e29;
+  color: #f6d32d;
+  font-size: 11.5px;
+  font-weight: 900;
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 1px;
+}
+
+.sub-title {
+  color: #2c3e50;
+  font-size: 17px;
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+/* 搜尋主卡片：對齊 Review 與 Meta 頁面的卡片陰影與邊框層次 */
 .search-panel {
   background-color: #ffffff; 
   border-radius: 24px;
-  padding: 30px 40px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  padding: 32px 40px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
   border: 1px solid #ffffff;
 }
 
-.label-with-icon {
+/* 區塊標題一：對齊 SystematicReview.vue 左側進階篩選標題列 */
+.section-header-bar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 18px;
-  font-weight: bold;
-  margin-bottom: 12px;
-  color: #333;
+  gap: 12px;
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  border-bottom: 2px solid var(--light-color);
 }
 
 .info-btn {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: 1.5px solid var(--dark-color);
   background-color: var(--light-color);
@@ -328,131 +386,268 @@ const submitFilter = async () => {
   transform: scale(1.08);
 }
 
+.header-text-group {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.header-zh {
+  font-size: 20px;
+  font-weight: 900;
+  color: #2c3e50;
+  letter-spacing: 0.5px;
+}
+
+.header-en {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--dark-color);
+  letter-spacing: 1.2px;
+}
+
+/* 五大化學物質按鈕網格排列 */
 .chip-container {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+}
+
+.chip-container.chem-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
 }
 
 .chip-container.inline {
   margin-bottom: 0;
   display: inline-flex;
+  gap: 8px;
 }
 
 .chip-btn {
   background-color: #ffffff;
-  color: #555;
-  border: 1px solid var(--dark-color);
-  padding: 8px 24px;
-  border-radius: 8px;
-  font-size: 16px;
+  color: #4a5568;
+  border: 1.5px solid #cbd5e1;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 15.5px;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-weight: bold;
+  font-weight: 800;
+  text-align: center;
+}
+
+.chip-btn.chem-btn {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
 }
 
 .chip-btn.small {
-  padding: 4px 16px;
+  padding: 6px 16px;
   font-size: 14px;
+  border-radius: 8px;
 }
 
 .chip-btn:hover {
-  background-color: var(--primary-color);
-  color: var(--white);
+  border-color: var(--dark-color);
+  color: var(--dark-color);
+  transform: translateY(-1px);
 }
 
 .chip-btn.active {
   background-color: var(--dark-color);
   color: var(--white);
-  border: 1px solid var(--dark-color);
+  border-color: var(--dark-color);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
+/* 區塊標題二：對齊 SystematicReview.vue 右側證據池垂直飾條風格 */
 .condition-section {
-  margin-left: 32px;
+  margin-top: 8px;
 }
 
-.section-label {
-  font-size: 18px;
-  font-weight: bold;
-  display: block;
+.pool-title-banner {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  border-left: 5px solid var(--dark-color);
+  padding-left: 14px;
   margin-bottom: 16px;
+}
+
+.banner-zh {
+  font-size: 20px;
+  font-weight: 900;
+  color: #2c3e50;
+  letter-spacing: 0.5px;
+}
+
+.banner-en {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--dark-color);
+  letter-spacing: 1.2px;
+}
+
+/* 內部條件表單盒：採用與 MetaAnalysis.vue 相同的 #f8f9fa 淺灰底色襯托白色控制項 */
+.filter-box {
+  background-color: #f8f9fa;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 20px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .form-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding-left: 24px;
-  color: #444;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed #e2e8f0;
 }
 
-.form-row span { 
-  display: block; 
-  color: #555; 
-  font-weight: bold;
+.form-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+/* 左側固定寬度雙語標籤欄 */
+.row-label {
+  width: 155px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.label-zh {
+  font-size: 15.5px;
+  font-weight: 800;
+  color: #2c3e50;
+}
+
+.label-en {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--dark-color);
+  letter-spacing: 0.5px;
+}
+
+/* 右側控制項欄 */
+.row-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.ctrl-text {
+  color: #4a5568;
+  font-weight: 700;
+  font-size: 14.5px;
 }
 
 input[type="number"] {
-  border: 1px solid var(--dark-color);
-  border-radius: 4px;
-  padding: 6px 8px;
+  border: 1.5px solid var(--dark-color);
+  border-radius: 6px;
+  padding: 6px 10px;
   outline: none;
+  background-color: #ffffff;
 }
 
 /* 修改點 3：提高選擇器權重至 input[type="number"].year-input，確保 dark-color 邊框生效 */
 input[type="number"].year-input {
-  width: 72px;
-  font-weight: bold;
-  color: #555;
-  border: 1px solid var(--dark-color);
+  width: 78px;
+  font-weight: 800;
+  font-size: 14.5px;
+  color: #2c3e50;
+  border: 1.5px solid var(--dark-color);
   text-align: center;
 }
 
 input[type="number"].year-input:focus {
   border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.05);
+}
+
+/* 文獻類型 Radio 升級為質感膠囊選項，消除瀏覽器預設亮藍圓點 */
+.radio-group {
+  gap: 10px;
 }
 
 .radio-label {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   cursor: pointer;
-  color: #555; 
-  font-weight: bold;
+  color: #4a5568; 
+  font-weight: 800;
+  font-size: 14px;
+  background-color: #ffffff;
+  border: 1.5px solid #cbd5e1;
+  padding: 6px 14px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
 }
 
+.radio-label:hover {
+  border-color: var(--dark-color);
+}
+
+.radio-label.selected {
+  border-color: var(--dark-color);
+  background-color: var(--light-color);
+  color: var(--dark-color);
+}
+
+.radio-label input[type="radio"] {
+  accent-color: var(--dark-color);
+  cursor: pointer;
+  margin: 0;
+}
+
+/* 初步篩選成果區 */
 .preview-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  margin-top: 32px;
+  gap: 14px;
+  margin-top: 26px;
 }
 
 .result-box {
   width: 100%;
-  max-width: 400px;
-  min-height: 48px;
-  background-color: #fff;
-  border: 1px solid #ccc;
-  border-radius: 8px;
+  max-width: 460px;
+  min-height: 52px;
+  background-color: #f8f9fa;
+  border: 1.5px dashed #cbd5e1;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #999;
-  font-size: 16px;
+  color: #94a3b8;
+  font-size: 15px;
   transition: all 0.3s ease;
-  font-weight: bold;
+  font-weight: 800;
 }
 
 .result-box.has-data {
   background-color: var(--light-color);
-  color: var(--dark-color);
-  border-color: var(--primary-color);
+  color: #2c3e50;
+  border: 1.5px solid var(--primary-color);
+  border-left: 5px solid var(--dark-color);
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+}
+
+.count-highlight {
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--dark-color);
+  margin: 0 4px;
 }
 
 .submit-section {
@@ -466,11 +661,12 @@ input[type="number"].year-input:focus {
   color: #ffffff;
   border: 1px solid var(--light-color);
   padding: 12px 32px;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 16px;
-  font-weight: bold;
+  font-weight: 800;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
 
 .action-btn:disabled {
@@ -481,7 +677,8 @@ input[type="number"].year-input:focus {
 .action-btn.preview {
   background-color: var(--dark-color);
   color: var(--white);
-  padding: 12px 64px;
+  padding: 11px 64px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .action-btn.preview:active {
@@ -490,16 +687,19 @@ input[type="number"].year-input:focus {
   transition: all 0.1s ease;
 }
 
+/* 維持你指定的深色 #1a1e29 作為跨頁跳轉按鈕 */
 .action-btn.submit {
   background-color: #1a1e29;
   color: var(--white);
   border-color: #1a1e29;
-  padding: 12px 64px;
+  padding: 13px 68px;
+  box-shadow: 0 6px 16px rgba(26, 30, 41, 0.2);
 }
 
 .action-btn.submit:hover {
   background-color: #1a1e29; 
   color: var(--white);
+  transform: translateY(-1px);
 }
 
 .action-btn.submit:active {

@@ -4,7 +4,6 @@
 """
 # backend/app/rag/generator.py
 import os
-import time  # 👈 1. 新增 import time
 from pathlib import Path
 from collections import defaultdict
 from dotenv import load_dotenv
@@ -77,13 +76,19 @@ def _build_rag_evidence_context(
     first_author_map = {}
 
     if paper_ids:
-        # 載入切片文字備援
-        chunk_rows = (
-            db.query(PaperChunk.paper_id, PaperChunk.chunk_index, PaperChunk.chunk_text)
-            .filter(PaperChunk.paper_id.in_(paper_ids))
-            .all()
+        # 🚀 加速優化：檢查是否真的有切片缺少 chunk_text，若 JSONB 內都已有文字，就不必跨 Tailscale 查詢 PaperChunk 表！
+        needs_chunk_fallback = any(
+            not c.get("chunk_text")
+            for ev, _, _ in rows
+            for c in (ev.matched_chunks[:2] if ev.matched_chunks else [])
         )
-        chunk_text_map = {(r.paper_id, r.chunk_index): r.chunk_text for r in chunk_rows}
+        if needs_chunk_fallback:
+            chunk_rows = (
+                db.query(PaperChunk.paper_id, PaperChunk.chunk_index, PaperChunk.chunk_text)
+                .filter(PaperChunk.paper_id.in_(paper_ids))
+                .all()
+            )
+            chunk_text_map = {(r.paper_id, r.chunk_index): r.chunk_text for r in chunk_rows}
 
         # 從【第五張表：paper_authors】載入第一作者姓氏 (author_order == 1)
         author_rows = (
@@ -121,7 +126,6 @@ def _build_rag_evidence_context(
             f"Human: {kcc['model_breakdown'].get('Human', 0)}, In Vivo: {kcc['model_breakdown'].get('In Vivo', 0)}, In Vitro: {kcc['model_breakdown'].get('In Vitro', 0)})"
         )
         if grouped[kid]:
-            # 根據 max_papers_per_kcc 決定放入幾篇文獻 (None 代表全部放入)
             selected_group = grouped[kid][:max_papers_per_kcc] if max_papers_per_kcc is not None else grouped[kid]
             context_lines.extend(selected_group)
         else:
@@ -134,45 +138,34 @@ def _build_rag_evidence_context(
 def _generate_with_retry(
     client: genai.Client,
     model: str | list[str],
-    prompt: str,
-    max_retries_per_model: int = 2
+    prompt: str
 ) -> str:
     """
-    具備「多模型自動切換 (Model Fallback)」與「重試機制」的 LLM 呼叫器：
-    1. 若遇到 429 (Quota Exceeded 免費額度用完) 或 404 (模型不支援)，立即秒切下一個備援模型。
-    2. 若遇到 503 / 500 (伺服器暫時忙碌)，短暫重試後若仍塞車，同樣自動切換下一個備援模型。
+    🚀 極速版多模型自動切換呼叫器：
+    不論遇到 429 (額度用完)、503 (伺服器塞車)、500 或 404，
+    皆「不等待、不原地重試」，0 秒立即切換至 FALLBACK_MODELS 中的下一個模型！
     """
     model_list = [model] if isinstance(model, str) else model
     last_error = None
 
     for current_model in model_list:
-        for attempt in range(1, max_retries_per_model + 1):
-            try:
-                print(f"   📡 嘗試使用模型 [{current_model}] 生成報告 (第 {attempt} 次)...")
-                resp = client.models.generate_content(
-                    model=current_model,
-                    contents=prompt
-                )
-                print(f"   ✨ 模型 [{current_model}] 生成成功！")
-                return resp.text
+        try:
+            print(f"   📡 嘗試使用模型 [{current_model}] 生成報告...")
+            resp = client.models.generate_content(
+                model=current_model,
+                contents=prompt
+            )
+            print(f"   ✨ 模型 [{current_model}] 生成成功！")
+            return resp.text
 
-            except APIError as e:
-                last_error = e
-                err_msg = str(e)
-
-                # 429 (該模型今日免費額度已滿) 或 404 -> 不等待，直接換下一個模型！
-                if e.code in (429, 404) or "RESOURCE_EXHAUSTED" in err_msg:
-                    print(f"   ⚠️ 模型 [{current_model}] 今日免費額度已滿或無法使用 (HTTP {e.code})，立即切換下一個模型...")
-                    break
-
-                # 503 / 500 伺服器尖峰塞車 -> 等待 3 秒重試一次，若還是塞車就換下一個模型
-                if e.code in (503, 500) and attempt < max_retries_per_model:
-                    wait_sec = 3 * attempt
-                    print(f"   ⏳ 模型 [{current_model}] 伺服器忙碌中 (HTTP {e.code})，等待 {wait_sec} 秒後重試...")
-                    time.sleep(wait_sec)
-                else:
-                    print(f"   ⚠️ 模型 [{current_model}] 伺服器持續忙碌，自動切換下一個模型...")
-                    break
+        except APIError as e:
+            last_error = e
+            print(f"   ⚠️ 模型 [{current_model}] 忙碌或受限 (HTTP {e.code})，0 秒立即切換下一個備援模型...")
+            continue
+        except Exception as e:
+            last_error = e
+            print(f"   ⚠️ 模型 [{current_model}] 發生例外錯誤 ({e})，立即切換下一個備援模型...")
+            continue
 
     raise last_error
 
