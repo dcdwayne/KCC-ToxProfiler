@@ -10,3 +10,5 @@ voyageai
 pgvector
 regex
 google-genai
+requests
+pydantic

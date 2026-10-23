@@ -18,7 +18,29 @@ ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
 load_dotenv(ROOT_DIR / ".env")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-LLM_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+
+# =====================================================================
+# 👇👇👇 【多模型自動備援清單 (Fallback Models)】 👇👇👇
+# 系統會優先使用清單中的第 1 個模型；當遇到 429 (每日免費額度 20 次用完) 或 503 塞車時，
+# 會自動無縫切換至下一個模型繼續生成報告，確保 DEMO 與測試永不中斷！
+# =====================================================================
+# 依據帳號實際可用模型排列之免費額度備援清單 (由高品質至高額度 Lite 依序遞補)
+FALLBACK_MODELS = [
+    # --- 第一梯隊：高階旗艦 Flash (各擁獨立每日免費額度，寫作與毒理分析品質最佳) ---
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    # --- 第二梯隊：Omni 分支模型 ---
+    "gemini-omni-1.1-flash",
+    # --- 第三梯隊：高速輕量 Lite 模型 (免費額度最高、速度最快，確保 DEMO 永不斷線) ---
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
+    "gemini-2.5-flash-lite",
+]
+
+# 讓原有的 LLM_MODEL 變數直接指向備援清單，向下相容無須改動下方函式呼叫
+LLM_MODEL = FALLBACK_MODELS
 
 # =====================================================================
 # 👇👇👇 【各版本輸入 LLM 的文獻篇數調整區】可在此自由調整每個 KCC 要放入幾篇文獻 👇👇👇
@@ -109,26 +131,50 @@ def _build_rag_evidence_context(
     return "\n".join(context_lines)
 
 
-def _generate_with_retry(client: genai.Client, model: str, prompt: str, max_retries: int = 4) -> str:
+def _generate_with_retry(
+    client: genai.Client,
+    model: str | list[str],
+    prompt: str,
+    max_retries_per_model: int = 2
+) -> str:
     """
-    具備自動重試機制的 LLM 呼叫器：
-    當遇到 Google 伺服器 503 (High Demand) 或 429 (Rate Limit) 時，自動等待並重試。
+    具備「多模型自動切換 (Model Fallback)」與「重試機制」的 LLM 呼叫器：
+    1. 若遇到 429 (Quota Exceeded 免費額度用完) 或 404 (模型不支援)，立即秒切下一個備援模型。
+    2. 若遇到 503 / 500 (伺服器暫時忙碌)，短暫重試後若仍塞車，同樣自動切換下一個備援模型。
     """
-    for attempt in range(1, max_retries + 1):
-        try:
-            resp = client.models.generate_content(
-                model=model,
-                contents=prompt
-            )
-            return resp.text
-        except APIError as e:
-            # 503 (伺服器壅塞) 或 429 (請求太密集) 時進行重試
-            if e.code in (503, 429, 500) and attempt < max_retries:
-                wait_sec = 3 * (2 ** (attempt - 1))  # 依序等待 3秒, 6秒, 12秒
-                print(f"⚠️ Gemini 伺服器忙碌中 (HTTP {e.code})，等待 {wait_sec} 秒後進行第 {attempt + 1}/{max_retries} 次重試...")
-                time.sleep(wait_sec)
-            else:
-                raise
+    model_list = [model] if isinstance(model, str) else model
+    last_error = None
+
+    for current_model in model_list:
+        for attempt in range(1, max_retries_per_model + 1):
+            try:
+                print(f"   📡 嘗試使用模型 [{current_model}] 生成報告 (第 {attempt} 次)...")
+                resp = client.models.generate_content(
+                    model=current_model,
+                    contents=prompt
+                )
+                print(f"   ✨ 模型 [{current_model}] 生成成功！")
+                return resp.text
+
+            except APIError as e:
+                last_error = e
+                err_msg = str(e)
+
+                # 429 (該模型今日免費額度已滿) 或 404 -> 不等待，直接換下一個模型！
+                if e.code in (429, 404) or "RESOURCE_EXHAUSTED" in err_msg:
+                    print(f"   ⚠️ 模型 [{current_model}] 今日免費額度已滿或無法使用 (HTTP {e.code})，立即切換下一個模型...")
+                    break
+
+                # 503 / 500 伺服器尖峰塞車 -> 等待 3 秒重試一次，若還是塞車就換下一個模型
+                if e.code in (503, 500) and attempt < max_retries_per_model:
+                    wait_sec = 3 * attempt
+                    print(f"   ⏳ 模型 [{current_model}] 伺服器忙碌中 (HTTP {e.code})，等待 {wait_sec} 秒後重試...")
+                    time.sleep(wait_sec)
+                else:
+                    print(f"   ⚠️ 模型 [{current_model}] 伺服器持續忙碌，自動切換下一個模型...")
+                    break
+
+    raise last_error
 
 
 # =========================================================================

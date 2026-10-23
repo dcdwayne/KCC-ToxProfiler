@@ -105,7 +105,10 @@ import InfoGuideModal from '../components/InfoGuideModal.vue'
 
 const isGuideOpen = ref(false)
 const route = useRoute()
-const API_BASE_URL = `http://${window.location.hostname}:8000/api`
+// 若在本地 npm run dev (Port 5173) 則連 8000，若在 Nginx 正式環境 (Port 80) 則直接走相對路徑 '/api'
+const API_BASE_URL = window.location.port === '5173'
+  ? `http://${window.location.hostname}:8000/api`
+  : '/api'
 
 // 預設先打開「分析成果儀表板」
 const activeTab = ref('Dashboard')
@@ -315,9 +318,8 @@ onUnmounted(() => {
 
 .action-btn.tab-btn {
   position: relative;
-  background-color: #ffffff;
-  color: #333;
-  border: 1.5px solid var(--dark-color);
+  background-color: #1b1e29;
+  color: #ffffff;
   padding: 10px 32px;
   border-radius: 8px;
   font-size: 16px;
@@ -330,8 +332,8 @@ onUnmounted(() => {
 
 .action-btn.tab-btn.active,
 .action-btn.tab-btn:hover:not(:disabled) {
-  background-color: var(--dark-color);
-  color: #ffffff;
+  background-color: #ffffff;
+  color: #222;
 }
 
 .action-btn.tab-btn:active:not(:disabled) {

@@ -132,8 +132,10 @@ import InfoGuideModal from '../components/InfoGuideModal.vue'
 
 const router = useRouter()
 
-// 後端 API 基礎網址 (自動對應本地端或部署環境的主機 IP)
-const API_BASE_URL = `http://${window.location.hostname}:8000/api`
+// 若在本地 npm run dev (Port 5173) 則連 8000，若在 Nginx 正式環境 (Port 80) 則直接走相對路徑 '/api'
+const API_BASE_URL = window.location.port === '5173'
+  ? `http://${window.location.hostname}:8000/api`
+  : '/api'
 
 // 控制使用說明視窗開關
 const isGuideOpen = ref(false)
