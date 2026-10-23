@@ -1,6 +1,6 @@
 # papers 表 (PMID, Title, Abstract, ISSN, Q-Rank, Model_Type)
 # backend/app/models/paper.py
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, Text, Boolean, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -34,6 +34,8 @@ class Paper(Base):
     quartile = Column(String(15), default="Unranked", index=True)      # 期刊級別 (對照表二：Q1~Q4 或 Unranked)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    # 👇 新增：紀錄該文獻是否被使用者於首頁初步篩選選中 (預設 False)
+    is_selected = Column(Boolean, default=False, index=True, nullable=False)
 
     # ORM 關聯設定 (刪除文獻時自動連帶刪除表四與表五的對應紀錄)
     model_info = relationship("PaperModel", back_populates="paper", uselist=False, cascade="all, delete-orphan")

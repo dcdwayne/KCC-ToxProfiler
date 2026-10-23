@@ -3,6 +3,9 @@
 from sqlalchemy import Column, Integer, String, Float, Text
 from app.database import Base
 
+# ==========================================
+# 第二張表：journal_rankings (文獻級別對照表)
+# ==========================================
 class JournalRanking(Base):
     __tablename__ = "journal_rankings"
 
