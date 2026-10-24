@@ -43,11 +43,11 @@ LLM_MODEL = FALLBACK_MODELS
 
 # =====================================================================
 # 👇👇👇 【各版本輸入 LLM 的文獻篇數調整區】可在此自由調整每個 KCC 要放入幾篇文獻 👇👇👇
-# - PUBLIC_MAX_PAPERS_PER_KCC: 民眾版每個 KCC 最多放入幾篇文獻 (預設 3 篇，加速科普報告生成)
-# - EXPERT_MAX_PAPERS_PER_KCC: 專家版每個 KCC 最多放入幾篇文獻 (預設 5 篇)
+# - PUBLIC_MAX_PAPERS_PER_KCC: 民眾版每個 KCC 最多放入幾篇文獻 (預設 1 篇，加速科普報告生成)
+# - EXPERT_MAX_PAPERS_PER_KCC: 專家版每個 KCC 最多放入幾篇文獻 (預設 3 篇)
 # =====================================================================
-PUBLIC_MAX_PAPERS_PER_KCC = 3
-EXPERT_MAX_PAPERS_PER_KCC = 5
+PUBLIC_MAX_PAPERS_PER_KCC = 1
+EXPERT_MAX_PAPERS_PER_KCC = 3
 
 
 def _build_rag_evidence_context(
@@ -176,7 +176,7 @@ def _generate_with_retry(
 def generate_public_report(db: Session, evaluation_id: int) -> str:
     """
     單獨生成「民眾版本 (public_report)」：
-    每個 KCC 預設僅取前 PUBLIC_MAX_PAPERS_PER_KCC (3) 篇文獻，生成完畢後立即 Commit 至資料庫，
+    每個 KCC 預設僅取前 PUBLIC_MAX_PAPERS_PER_KCC (1) 篇文獻，生成完畢後立即 Commit 至資料庫，
     讓前端『民眾版本』按鈕率先解鎖，無須等待專家版！
     """
     if not GEMINI_API_KEY:
@@ -232,12 +232,12 @@ def generate_public_report(db: Session, evaluation_id: int) -> str:
 
 
 # =========================================================================
-# 獨立函式 2：接著產生【專家版本報告 (Expert Report)】(納入每個 KCC 的 5 篇選定文獻)
+# 獨立函式 2：接著產生【專家版本報告 (Expert Report)】
 # =========================================================================
 def generate_expert_report(db: Session, evaluation_id: int) -> str:
     """
     單獨生成「專家版本 (expert_report)」：
-    將專家精鍊後保留 (is_selected=True) 納入每個 KCC 的 5 篇選定文獻放入 Prompt，生成完畢後更新狀態為 COMPLETED。
+    將專家精鍊後保留 (is_selected=True) 納入每個 KCC 的 3 篇選定文獻放入 Prompt，生成完畢後更新狀態為 COMPLETED。
     """
     if not GEMINI_API_KEY:
         raise ValueError("❌ 找不到 GEMINI_API_KEY！請於根目錄 .env 檔案中設定。")
@@ -248,7 +248,7 @@ def generate_expert_report(db: Session, evaluation_id: int) -> str:
 
     client = genai.Client(api_key=GEMINI_API_KEY)
 
-    # 專家版放入 5 篇選定文獻 (EXPERT_MAX_PAPERS_PER_KCC = 5)
+    # 專家版放入 3 篇選定文獻 (EXPERT_MAX_PAPERS_PER_KCC = 3)
     expert_evidence_context = _build_rag_evidence_context(
         db,
         evaluation_id,
