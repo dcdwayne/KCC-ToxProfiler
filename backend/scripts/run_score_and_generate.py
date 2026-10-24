@@ -26,12 +26,12 @@ def main():
             print(f"  KC {k['id']} ({k['title']:<26}): {k['score']:>3}% | {k['evidence']:<10} | 文獻數: {k['paper_count']} 篇")
         print("-" * 65)
 
-        print(f"\n✍️ [步驟 2/3] 正在先生成【民眾版】報告 (每個 KCC 取前 3 篇代表文獻)...")
+        print(f"\n✍️ [步驟 2/3] 正在先生成【民眾版】報告 (每個 KCC 取前 1 篇代表文獻)...")
         public_text = generate_public_report(db, TARGET_EVALUATION_ID)
         print("\n================ 【民眾版本報告預覽】 ================")
         print(public_text[:600] + "\n...(完整內容已存入表十 evaluations.public_report)...\n")
 
-        print(f"\n✍️ [步驟 3/3] 正在接著生成【專家版】報告 (每個 KCC 取前 5 篇代表文獻)...")
+        print(f"\n✍️ [步驟 3/3] 正在接著生成【專家版】報告 (每個 KCC 取前 3 篇代表文獻)...")
         expert_text = generate_expert_report(db, TARGET_EVALUATION_ID)
         print("\n================ 【專家版本報告預覽】 ================")
         print(expert_text[:800] + "\n...(完整內容已存入表十 evaluations.expert_report)...\n")

@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from concurrent.futures import ThreadPoolExecutor
 
 from app.database import SessionLocal
 from app.models import (
@@ -373,18 +374,34 @@ def get_paper_modal_detail(
     }
 
 
-def _run_llm_reports_in_background(evaluation_id: int):
-    """背景任務：先跑民眾版 (完成即刻 Commit 解鎖按鈕)，再跑專家版"""
-    bg_db = SessionLocal()
+# 利用 Python 內建的 concurrent.futures.ThreadPoolExecutor 讓民眾版與專家版同時平行起跑（各自使用獨立的 SessionLocal() 確保資料庫執行緒安全）
+def _task_public(evaluation_id: int):
+    db = SessionLocal()
     try:
-        # 第一階段：先生成民眾版 (每個 KCC 僅取 3 篇，速度極快)
-        generate_public_report(bg_db, evaluation_id)
-        # 第二階段：接著生成專家版 (納入每個 KCC 僅取 5 篇選定文獻)
-        generate_expert_report(bg_db, evaluation_id)
+        generate_public_report(db, evaluation_id)
     except Exception as e:
-        print(f"❌ 背景生成報告失敗 (Evaluation #{evaluation_id}): {e}")
+        print(f"❌ 民眾版報告背景生成失敗 (Evaluation #{evaluation_id}): {e}")
     finally:
-        bg_db.close()
+        db.close()
+
+def _task_expert(evaluation_id: int):
+    db = SessionLocal()
+    try:
+        generate_expert_report(db, evaluation_id)
+    except Exception as e:
+        print(f"❌ 專家版報告背景生成失敗 (Evaluation #{evaluation_id}): {e}")
+    finally:
+        db.close()
+
+def _run_llm_reports_in_background(evaluation_id: int):
+    """
+    🚀 雙執行緒平行生成：
+    同時向 Gemini 發出「民眾版」與「專家版」請求！
+    民眾版因篇幅短會率先完成並解鎖前端按鈕，而專家版也在同一時間平行生成，總等待時間直接砍半！
+    """
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        executor.submit(_task_public, evaluation_id)
+        executor.submit(_task_expert, evaluation_id)
 
 
 # =====================================================================

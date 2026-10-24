@@ -28,5 +28,25 @@ services:
     depends_on:
       - postgres
 
+  # 3. FastAPI 後端服務 (本地開發專用)
+  backend:
+    build: 
+      context: ./backend  # 指向你的 backend 資料夾，Docker 會去這裡找 Dockerfile
+    container_name: tox-backend-local
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app    # 【關鍵】將你本地的程式碼即時掛載到容器內的 /app 工作目錄
+    env_file:
+      - .env              # 讓 FastAPI 也能讀取到資料庫連線字串或 API Key
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload # 【關鍵】覆寫 Dockerfile 的 CMD，加上 --reload
+    depends_on:
+      - postgres
+    environment:
+      # 確保容器內的 FastAPI 知道資料庫的主機名稱是 postgres (對應上方的服務名稱)
+      - DB_HOST=postgres 
+
 volumes:
   pgdata:
+  
