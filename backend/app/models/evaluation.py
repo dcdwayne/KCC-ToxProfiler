@@ -20,6 +20,9 @@ class Evaluation(Base):
     
     # 狀態追蹤：REVIEWING (專家精鍊審查中) -> COMPLETED (已完成統合分析與報告生成)
     status = Column(String(30), default="REVIEWING", index=True, nullable=False)
+
+    # 👇 新增：標記是否被選定為 FastMCP 查詢該化學物質時的代表評估紀錄 (同化學物質僅限一筆為 True)
+    is_selected = Column(Boolean, default=False, index=True, nullable=False)
     
     # --- 以下欄位在專家按下『整合分析』按鈕後計算並寫入 ---
     hazard_score = Column(Integer, nullable=True)                      # 總體危害分數 (0 ~ 100)

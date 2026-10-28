@@ -7,6 +7,9 @@
     </div>
     
     <div class="nav-right">
+      <button class="history-nav-btn" @click="router.push('/history')">
+        歷史紀錄
+      </button>
       <button 
         class="lang-toggle" 
         :class="{ active: currentLang === 'EN' }"
@@ -43,6 +46,34 @@ const toggleLang = () => {
   align-items: center;
   padding: 0 24px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer; /* 滑鼠移過去變可點擊手勢 */
+  user-select: none;
+}
+
+.history-nav-btn {
+  background-color: var(--light-color);
+  color: var(--dark-color);
+  border: none;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.history-nav-btn:hover {
+  background-color: var(--white);
+}
+
+.history-nav-btn.active {
+  background-color: var(--dark-color);
+  color: var(--white);
 }
 
 .nav-left {
