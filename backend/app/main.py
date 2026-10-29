@@ -2,7 +2,7 @@
 # backend/app/main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import search, review, meta, history  # 👈 引入 search, review, meta, history
+from app.routers import search, review, meta, history, chat  # 👈 引入 search, review, meta, history, chat
 
 app = FastAPI(title="KCC ToxProfiler API", version="1.0.0")
 
@@ -20,6 +20,7 @@ app.include_router(search.router)
 app.include_router(review.router) # 👈 註冊 review 路由
 app.include_router(meta.router)  # 👈 註冊 meta 路由
 app.include_router(history.router) # 👈 註冊 history
+app.include_router(chat.router) # 👈 註冊 chat.router
 
 @app.get("/")
 def health_check():

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "kcc-toxprofiler": {
+      "command": "python",
+      "args": ["-m", "app.mcp_server"],
+      "cwd": "./backend",
+      "env": {
+        "PYTHONPATH": "."
+      }
+    }
+  }
+}
