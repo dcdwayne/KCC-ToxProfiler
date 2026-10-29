@@ -4,7 +4,7 @@
     <header class="header-section">
       <h2 class="main-title">毒理學文獻條件檢索與危害辨識評估系統</h2>
       <div class="sub-title-banner">
-        <!--<span class="step-pill">STEP 01</span>-->
+        <span class="step-pill">STEP 01</span>
         <h3 class="sub-title">依據科學文獻資料，系統化致癌物之危害辨識評估流程</h3>
       </div>
     </header>

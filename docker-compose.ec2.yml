@@ -2,7 +2,22 @@
 # 保留雙重相容：這裡除了讓 Nginx 監聽 80:80 並代理 /api/ 之外，我也幫你在 backend 保留了 8000:8000 映射，萬一你還沒改 .vue 裡的 :8000 也能直接通！
 
 services:
-  # 1. 後端 FastAPI 服務 (透過 Tailscale 連線回本地端 PostgreSQL)
+  # 1. PostgreSQL + pgvector 資料庫服務 (跑在 EC2 內部)
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: tox-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      # 僅允許本機或 Tailscale 內部存取，不暴露於公網
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      
+  # 2. 後端 FastAPI 服務
   backend:
     build:
       context: ./backend
@@ -13,8 +28,10 @@ services:
       - .env
     ports:
       - "8000:8000"
+    depends_on:
+      - postgres
 
-  # 2. 前端 Vue 3 + Nginx 反向代理服務
+  # 3. 前端 Vue 3 + Nginx 反向代理服務
   frontend:
     build:
       context: ./frontend
@@ -25,3 +42,6 @@ services:
       - "80:80"
     depends_on:
       - backend
+
+volumes:
+  pgdata:
