@@ -267,21 +267,25 @@ onUnmounted(() => {
   box-sizing: border-box;
 }
 
-.meta-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.meta-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
 .main-title {
-  color: #1b1e29;
+  color: white;
   font-size: 38px;
   margin-top: 0px;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
   font-weight: 900;
   letter-spacing: 1.5px;
   text-shadow: 
-    1px 1px 0px #f6d32d,
-    2px 2px 0px #f6d32d,
-    3px 3px 0px #e25740,
-    4px 4px 0px #f6d32d;
+    -2px -2px 0 #000,  /* 左上 */
+    0   -2px 0 #000,  /* 正上 */
+    2px -2px 0 #000,  /* 右上 */
+    2px  0   0 #000,  /* 正右 */
+    2px  2px 0 #000,  /* 右下 */
+    0    2px 0 #000,  /* 正下 */
+    -2px  2px 0 #000,  /* 左下 */
+    -2px  0   0 #000;  /* 正左 */
 }
-.title-en { color: #e74c3c; }
+.title-en { color: white; }
 .target-info { display: flex; flex-direction: column; gap: 4px; }
 .label { font-size: 12px; color: #555; letter-spacing: 1px; font-weight: bold; }
 .target-name { font-size: 28px; margin: 0; color: #222; font-weight: 700; letter-spacing: 1px; }

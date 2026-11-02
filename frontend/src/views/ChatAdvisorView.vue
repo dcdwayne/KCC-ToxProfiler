@@ -1,14 +1,14 @@
 <template>
   <main class="chat-page">
-    <!-- 聊天室主容器 (仿照智能助理阿發的置中視窗卡片結構) -->
+    <!-- 聊天室主容器 (仿照智能助理的置中視窗卡片結構) -->
     <div class="chat-window">
-      <!-- 1. 頂部標題列 (對應阿發頂部標題與右側重設選單) -->
+      <!-- 1. 頂部標題列 (對應頂部標題與右側重設選單) -->
       <header class="chat-topbar">
         <div class="topbar-left">
           <span class="status-dot"></span>
           <span class="assistant-badge">AI ADVISOR</span>
         </div>
-        <h2 class="topbar-title">智能助理 Dr. Manhattan</h2>
+        <h2 class="topbar-title">危害辨識導覽員 Dr. Manhattan</h2>
         <button class="reset-top-btn" @click="restartConversation" title="重新開始對話導覽">
           ↻ 重新導覽
         </button>
@@ -26,7 +26,7 @@
           <template v-if="msg.sender === 'ai'">
             <!-- 左側圓形小頭像 (預留 Dr. Manhattan 頭像空間 1) -->
             <div class="ai-avatar-circle">
-              <img v-if="DR_MANHATTAN_AVATAR" :src="DR_MANHATTAN_AVATAR" alt="Dr. Manhattan" class="avatar-img" />
+              <img v-if="DR_MANHATTAN_AVATAR_HEAD" :src="DR_MANHATTAN_AVATAR_HEAD" alt="Dr. Manhattan" class="avatar-img" />
               <span v-else class="avatar-fallback">⚛️</span>
             </div>
 
@@ -42,7 +42,7 @@
                   </div>
                 </div>
                 <div class="hero-intro-tag">
-                  <strong>Dr. Manhattan 危害辨識導覽員</strong>
+                  <strong>Dr. Manhattan 已上線</strong>
                   <span>已連結 FastMCP 實證毒理知識庫</span>
                 </div>
               </div>
@@ -107,7 +107,7 @@
                     <button class="alpha-topic-btn" :disabled="isThinking" @click="restartConversation">
                       重新選擇角色身分 ({{ currentRole === '專家' ? '改為一般民眾' : '改為專家' }})
                     </button>
-                    <button class="alpha-topic-btn" @click="router.push('/history')">
+                    <button class="alpha-topic-btn" @click="handleHistoryCardClick">
                       前往歷史紀錄勾選管理
                     </button>
                   </div>
@@ -133,7 +133,7 @@
         <!-- Dr. Manhattan 思考中動態指示器 -->
         <div v-if="isThinking" class="message-row row-ai">
           <div class="ai-avatar-circle">
-            <img v-if="DR_MANHATTAN_AVATAR" :src="DR_MANHATTAN_AVATAR" alt="Dr. Manhattan" class="avatar-img" />
+            <img v-if="DR_MANHATTAN_AVATAR_THINKING" :src="DR_MANHATTAN_AVATAR_THINKING" alt="Dr. Manhattan" class="avatar-img" />
             <span v-else class="avatar-fallback">⚛️</span>
           </div>
           <div class="ai-content-col">
@@ -171,14 +171,16 @@
           type="text"
           v-model="userInput"
           class="chat-text-input"
-          :placeholder="currentChemical ? `針對「${currentChemical.chemical_name_zh}」評估報告內容向 Dr. Manhattan 提問...` : '請先點擊上方按鈕選擇您的角色與關注化學物質...'"
-          :disabled="!currentChemical || isThinking"
+          :placeholder="isVisitorMode
+            ? '🔒 訪客模式僅開放點選上方主題按鈕（請點右上角「登入」會員或專家帳號以開啟自由提問）'
+            : (currentChemical ? `針對「${currentChemical.chemical_name_zh}」評估報告內容向 Dr. Manhattan 提問...` : '請先點擊上方按鈕選擇您的角色與關注化學物質...')"
+          :disabled="isVisitorMode || !currentChemical || isThinking"
           @keyup.enter="handleSendFreeText"
         />
 
         <button 
           class="send-circle-btn" 
-          :disabled="!currentChemical || !userInput.trim() || isThinking"
+          :disabled="isVisitorMode || !currentChemical || !userInput.trim() || isThinking"
           @click="handleSendFreeText"
           title="送出問題"
         >
@@ -195,6 +197,28 @@
 <script setup>
 import { ref, nextTick, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+import { authState, openAuthModal } from '../utils/authStore'
+
+// 判斷是否為『訪客』(或尚未登入)：鎖定底部輸入框不消耗 Token
+const isVisitorMode = computed(() => {
+  return !authState.isAuthenticated || authState.user?.role === '訪客'
+})
+
+// 判斷是否允許前往『歷史紀錄勾選管理』(僅系統管理者與專家可前往)
+const canGoHistory = computed(() => {
+  const r = authState.user?.role
+  return r === '系統管理者' || r === '專家'
+})
+
+// 點擊卡片上「前往歷史紀錄勾選管理」時的權限檢查
+const handleHistoryCardClick = () => {
+  if (canGoHistory.value) {
+    router.push('/history')
+  } else {
+    alert('⚠️ 權限提示：「歷史紀錄勾選管理」僅開放【專家】與【系統管理者】使用！')
+  }
+}
 
 const router = useRouter()
 
@@ -208,6 +232,8 @@ const API_BASE_URL = window.location.port === '5173'
 // 並將下方空字串改為 '/dr-manhattan.png'，大頭貼與左側圓形頭像就會自動生效！
 // =====================================================================
 const DR_MANHATTAN_AVATAR = '/dr-manhattan.png'
+const DR_MANHATTAN_AVATAR_HEAD = '/dr-manhattan-head.png'
+const DR_MANHATTAN_AVATAR_THINKING = '/dr-manhattan-thinking.png'
 
 const chatViewportRef = ref(null)
 const messages = ref([])
@@ -284,7 +310,7 @@ const restartConversation = () => {
   appendAiMessage({
     isHeroGreeting: true,
     html: `
-      <p class="report-para">※ 歡迎使用 <strong>KCC ToxProfiler 毒理學危害辨識平台</strong>！我是您的專屬評估智能助理 <strong>Dr. Manhattan</strong>。</p>
+      <p class="report-para">※ 歡迎使用 <strong>KCC ToxProfiler 毒理學危害辨識平台</strong>！我是您的專屬危害辨識導覽員 <strong>Dr. Manhattan</strong>。</p>
       <p class="report-para">※ 我將根據您在「歷史紀錄」中勾選的化學物質評估檔案，為您提供精準的致癌關鍵特徵（10 KCCs）解析與風險問答。</p>
       <p class="report-para" style="margin-bottom:0;"><strong>您好，請問您的角色是？</strong></p>
     `,
@@ -454,6 +480,7 @@ const handleSendFreeText = async () => {
     const res = await fetch(`${API_BASE_URL}/chat/ask`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
       body: JSON.stringify({
         chemical_query: currentChemical.value.cas_number,
         role: currentRole.value,
@@ -490,7 +517,7 @@ onMounted(() => {
   padding: 0 20px;
 }
 
-/* 仿照智能助理阿發的對話主視窗 */
+/* 仿照智能助理的對話主視窗 */
 .chat-window {
   position: relative;
   background-color: #f4f7f8;
@@ -543,13 +570,17 @@ onMounted(() => {
   margin: 0;
   font-size: 24px;
   font-weight: 900;
-  color: #1b1e29;
+  color: white;
   letter-spacing: 1.5px;
   text-shadow: 
-    1px 1px 0px #f6d32d,
-    2px 2px 0px #f6d32d,
-    3px 3px 0px #e25740,
-    4px 4px 0px #f6d32d;
+    -2px -2px 0 #000,  /* 左上 */
+    0   -2px 0 #000,  /* 正上 */
+    2px -2px 0 #000,  /* 右上 */
+    2px  0   0 #000,  /* 正右 */
+    2px  2px 0 #000,  /* 右下 */
+    0    2px 0 #000,  /* 正下 */
+    -2px  2px 0 #000,  /* 左下 */
+    -2px  0   0 #000;  /* 正左 */
 }
 
 .reset-top-btn {

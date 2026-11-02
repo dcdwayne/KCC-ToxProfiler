@@ -7,16 +7,80 @@
       </h2>
     </header>
 
-    <!-- 標題與多選排序控制列 -->
-    <section class="history-section">
-      <div class="list-controls">
-        <div class="pool-title-banner">
-          <span class="list-title">
-            危害辨識評估歷史紀錄，共 <strong class="count-num">{{ records.length }}</strong> 筆：
+    <section class="panel-container">
+      <!-- 1. 基本篩選條件區塊 (與帳號管理頁面風格完全同步) -->
+      <div class="filter-card">
+        <div class="filter-card-header">
+          <div class="pool-title-banner">
+            <span class="banner-zh">基本篩選條件</span>
+            <span class="banner-en">HISTORY FILTER</span>
+          </div>
+          <div class="filter-btn-group">
+            <button class="btn-outline" @click="resetFilters">重置條件</button>
+            <button class="btn-solid" @click="applyFilters">執行篩選</button>
+          </div>
+        </div>
+
+        <div class="filter-grid">
+          <!-- 化學物質名稱或 CAS 搜尋 -->
+          <div class="filter-item">
+            <label>化學物質名稱 / CAS 號碼</label>
+            <input
+              type="text"
+              v-model.trim="filters.keyword"
+              placeholder="輸入如 DEHP、PFOA 或 CAS 號碼..."
+              class="text-input"
+              @keyup.enter="applyFilters"
+            />
+          </div>
+
+          <!-- 危害等級篩選 -->
+          <div class="filter-item">
+            <label>危害等級 Hazard Level</label>
+            <select v-model="filters.risk_level" class="select-input" @change="applyFilters">
+              <option value="ALL">全部等級 (All Levels)</option>
+              <option value="HIGH RISK">高危害 HIGH RISK (≥70)</option>
+              <option value="MODERATE RISK">中度危害 MODERATE RISK (40~69)</option>
+              <option value="LOW RISK">低度危害 LOW RISK (&lt;40)</option>
+              <option value="UNSCORED">尚未算分 UNSCORED</option>
+            </select>
+          </div>
+
+          <!-- 評估狀態篩選 -->
+          <div class="filter-item">
+            <label>評估狀態 Evaluation Status</label>
+            <select v-model="filters.status" class="select-input" @change="applyFilters">
+              <option value="ALL">全部狀態 (All Status)</option>
+              <option value="COMPLETED">已完成 (COMPLETED)</option>
+              <option value="GENERATING">報告生成中 (GENERATING_*)</option>
+              <option value="REVIEWING">文獻回顧中 (REVIEWING)</option>
+              <option value="RETRIEVING">檢索配對中 (RETRIEVING)</option>
+            </select>
+          </div>
+
+          <!-- FastMCP 知識庫勾選狀態篩選 -->
+          <div class="filter-item">
+            <label>AI 知識庫綁定 (FastMCP)</label>
+            <select v-model="filters.mcp_selected" class="select-input" @change="applyFilters">
+              <option value="ALL">全部紀錄 (All Records)</option>
+              <option value="SELECTED">✓ 已勾選綁定 (Selected)</option>
+              <option value="UNSELECTED">○ 未勾選 (Unselected)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 資料筆數統計列 & 多選組合排序控制列 -->
+      <div class="summary-bar">
+        <div class="summary-left">
+          <button class="info-btn" title="點擊查看使用說明" @click="isGuideOpen = true">!</button>
+          <span class="summary-title">
+            危害辨識評估歷史紀錄：共 <strong class="highlight-num">{{ filteredRecords.length }}</strong> 筆資料
+            （共 <strong class="highlight-num">{{ totalPages }}</strong> 頁，目前位於第 <strong>{{ currentPage }}</strong> 頁）
           </span>
         </div>
 
-        <!-- 排序按鈕區：支援多選組合排序 (新增『評估時間』由近到遠) -->
+        <!-- 排序按鈕區：支援多選組合排序 -->
         <div class="sort-options">
           <span>排序：</span>
           <button 
@@ -35,28 +99,121 @@
         </div>
       </div>
 
-      <!-- 歷史紀錄列表 -->
-      <div v-if="isLoading" class="empty-list-box">
+      <!-- 3. 歷史紀錄表格 (具明確欄位名稱，與帳號管理頁面一致) -->
+      <div v-if="isLoading" class="empty-box">
         正在載入歷史評估紀錄...
       </div>
 
-      <div v-else-if="paginatedRecords.length > 0" class="record-list">
-        <HistoryRecordRow
-          v-for="(rec, idx) in paginatedRecords"
-          :key="rec.id"
-          :index="(currentPage - 1) * ITEMS_PER_PAGE + idx + 1"
-          :record="rec"
-          @toggle-select="handleToggleSelect"
-          @go-meta="handleGoToMeta"
-          @delete-record="openDeleteModal"
-        />
+      <div v-else-if="paginatedRecords.length > 0" class="table-wrapper">
+        <table class="tox-table">
+          <thead>
+            <tr>
+              <th style="width: 120px; text-align: center;">AI 知識庫綁定</th>
+              <th style="width: 56px; text-align: center;">#</th>
+              <th style="min-width: 210px;">化學物質名稱 (CAS 號碼)</th>
+              <th style="width: 185px; text-align: center;">危害等級 (危害分數)</th>
+              <th style="width: 175px; text-align: center;">評估狀態</th>
+              <th style="width: 185px; text-align: center;">評估時間 (台灣時區)</th>
+              <th style="width: 145px; text-align: center;">操作 (成果 / 刪除)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(rec, idx) in paginatedRecords"
+              :key="rec.id"
+              :class="{ 'selected-row': rec.is_selected }"
+            >
+              <!-- 1. 勾選綁定按鈕 (單一化學物質互斥勾選) -->
+              <td class="text-center">
+                <label
+                  class="checkbox-wrapper"
+                  title="勾選作為 Dr. Manhattan (FastMCP) 回答此化學物質之代表紀錄（每種化學物質限選一筆）"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="rec.is_selected"
+                    @change="handleToggleSelect(rec)"
+                  />
+                  <span class="mcp-tag" :class="{ active: rec.is_selected }">
+                    {{ rec.is_selected ? '已綁定' : '未選' }}
+                  </span>
+                </label>
+              </td>
+
+              <!-- 2. 序號 -->
+              <td class="text-center cell-index">
+                {{ (currentPage - 1) * ITEMS_PER_PAGE + idx + 1 }}.
+              </td>
+
+              <!-- 3. 化學物質名稱與 CAS 編號 -->
+              <td>
+                <div class="chem-main-info">
+                  <span class="chem-name">{{ rec.chemical_name }}</span>
+                </div>
+                <div class="chem-sub-info">
+                  <span>CAS RN: <code>{{ rec.cas_number || '--' }}</code></span>
+                  <span>｜ 評估單號: #{{ rec.id }}</span>
+                </div>
+              </td>
+
+              <!-- 4. 危害等級 (危害分數)：仿照 Meta 儀表板 紅/黃/灰 設計 -->
+              <td class="text-center">
+                <span class="hazard-badge" :class="getHazardClass(rec.risk_level, rec.hazard_score)">
+                  <template v-if="rec.hazard_score !== null && rec.hazard_score !== undefined">
+                    {{ rec.risk_level }} ({{ rec.hazard_score }})
+                  </template>
+                  <template v-else>
+                    UNSCORED (--)
+                  </template>
+                </span>
+              </td>
+
+              <!-- 5. 評估狀態：仿照 Review 頁面 期刊排名 (Q1/Q2/Q3) 設計 -->
+              <td class="text-center">
+                <span class="status-badge" :class="getStatusClass(rec.status)">
+                  {{ rec.status }}
+                </span>
+              </td>
+
+              <!-- 6. 製作時間 (已轉換為台灣時區 UTC+8) -->
+              <td class="text-center time-cell">
+                <strong>{{ rec.created_at_tw }}</strong>
+              </td>
+
+              <!-- 7. 操作：導向 Meta 評估成果頁按鈕 + 刪除叉叉按鈕 -->
+              <td class="text-center">
+                <div class="action-icon-group">
+                  <button
+                    class="meta-link-btn"
+                    @click="handleGoToMeta(rec)"
+                    title="前往 Meta-analysis 頁面查看評估成果與報告"
+                  >
+                    <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                      <polyline points="15 3 21 3 21 9" />
+                      <line x1="10" y1="14" x2="21" y2="3" />
+                    </svg>
+                  </button>
+
+                  <button
+                    class="delete-btn"
+                    @click="openDeleteModal(rec)"
+                    title="刪除此筆評估紀錄與相關證據資料"
+                  >
+                    X
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
 
-      <div v-else class="empty-list-box">
-        目前尚無任何危害辨識評估歷史紀錄。
+      <div v-else class="empty-box">
+        目前篩選條件下尚無符合的危害辨識評估歷史紀錄。
       </div>
 
-      <!-- 頁碼點擊功能：« 首頁 01 02 03 最後 » -->
+      <!-- 4. 頁碼點擊功能：« 首頁 01 02 03 最後 » -->
       <div class="pagination-bar" v-if="totalPages > 1">
         <button 
           class="page-nav-btn" 
@@ -150,14 +307,22 @@
         </div>
       </div>
     </transition>
+
+    <!-- 共用使用說明彈出視窗 (傳入 page="history") -->
+    <InfoGuideModal 
+      :isOpen="isGuideOpen" 
+      page="history" 
+      @close="isGuideOpen = false" 
+    />
   </main>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import HistoryRecordRow from '../components/HistoryRecordRow.vue'
+import InfoGuideModal from '../components/InfoGuideModal.vue'
 
+const isGuideOpen = ref(false)
 const router = useRouter()
 
 // 若在本地 npm run dev (Port 5173) 則連 8000，若在 Nginx 正式環境 (Port 80) 則走相對路徑 '/api'
@@ -174,6 +339,14 @@ const records = ref([])
 const isLoading = ref(false)
 const currentPage = ref(1)
 
+// 基本篩選條件狀態
+const filters = reactive({
+  keyword: '',
+  risk_level: 'ALL',
+  status: 'ALL',
+  mcp_selected: 'ALL'
+})
+
 // 多選排序狀態陣列 (依點擊順序存放 'chemical' | 'hazard' | 'status' | 'time')
 const activeSorts = ref([])
 const sortOptions = [
@@ -188,14 +361,51 @@ const isDeleteModalOpen = ref(false)
 const recordToDelete = ref(null)
 const isDeleting = ref(false)
 
+// --- 依據基本篩選條件過濾紀錄 ---
+const filteredRecords = computed(() => {
+  return records.value.filter(rec => {
+    // 1. 關鍵字過濾 (化學物質名稱或 CAS 號碼)
+    const kw = filters.keyword.toLowerCase()
+    if (kw) {
+      const matchName = (rec.chemical_name || '').toLowerCase().includes(kw)
+      const matchCas = (rec.cas_number || '').toLowerCase().includes(kw)
+      if (!matchName && !matchCas) return false
+    }
+
+    // 2. 危害等級過濾
+    if (filters.risk_level !== 'ALL') {
+      if (filters.risk_level === 'UNSCORED') {
+        if (rec.hazard_score !== null && rec.hazard_score !== undefined) return false
+      } else {
+        if (rec.risk_level !== filters.risk_level || rec.hazard_score === null) return false
+      }
+    }
+
+    // 3. 評估狀態過濾
+    if (filters.status !== 'ALL') {
+      if (filters.status === 'GENERATING') {
+        if (!rec.status || !rec.status.startsWith('GENERATING')) return false
+      } else {
+        if (rec.status !== filters.status) return false
+      }
+    }
+
+    // 4. FastMCP 勾選綁定狀態過濾
+    if (filters.mcp_selected === 'SELECTED' && !rec.is_selected) return false
+    if (filters.mcp_selected === 'UNSELECTED' && rec.is_selected) return false
+
+    return true
+  })
+})
+
 // --- 分頁計算邏輯 ---
 const totalPages = computed(() => {
-  return Math.max(1, Math.ceil(records.value.length / ITEMS_PER_PAGE))
+  return Math.max(1, Math.ceil(filteredRecords.value.length / ITEMS_PER_PAGE))
 })
 
 const paginatedRecords = computed(() => {
   const start = (currentPage.value - 1) * ITEMS_PER_PAGE
-  return records.value.slice(start, start + ITEMS_PER_PAGE)
+  return filteredRecords.value.slice(start, start + ITEMS_PER_PAGE)
 })
 
 const visiblePages = computed(() => {
@@ -221,6 +431,34 @@ const goToPage = (page) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
   }
+}
+
+// 觸發篩選與重置篩選
+const applyFilters = () => {
+  currentPage.value = 1
+}
+
+const resetFilters = () => {
+  filters.keyword = ''
+  filters.risk_level = 'ALL'
+  filters.status = 'ALL'
+  filters.mcp_selected = 'ALL'
+  currentPage.value = 1
+}
+
+// --- 標籤配色輔助函式 ---
+const getHazardClass = (riskLevel, score) => {
+  if (score === null || score === undefined) return 'hazard-unscored'
+  if (riskLevel === 'HIGH RISK') return 'hazard-high'
+  if (riskLevel === 'MODERATE RISK') return 'hazard-moderate'
+  return 'hazard-low'
+}
+
+const getStatusClass = (status) => {
+  if (status === 'COMPLETED') return 'status-completed'
+  if (status && status.startsWith('GENERATING')) return 'status-generating'
+  if (status === 'REVIEWING') return 'status-reviewing'
+  return 'status-retrieving'
 }
 
 // --- API 1: 取得歷史紀錄列表 (支援多選排序) ---
@@ -334,96 +572,242 @@ onMounted(() => {
 <style scoped>
 .history-page {
   width: 100%;
-  max-width: 1100px;
-  margin: 24px auto 40px auto;
+  max-width: 1220px;
+  margin: 20px auto 40px auto;
   padding: 0 20px;
 }
 
 .page-header {
-  margin-bottom: 22px;
+  margin-bottom: 18px;
 }
 
+/* 保留你設定的白字黑邊立體標題風格 */
 .main-title {
-  color: #1b1e29;
-  font-size: 38px;
-  margin-top: 4px;
-  margin-bottom: 20px;
+  color: white;
+  font-size: 36px;
+  margin-top: 0px;
+  margin-bottom: 0px;
   font-weight: 900;
   letter-spacing: 1.5px;
   text-shadow: 
-    1px 1px 0px #f6d32d,
-    2px 2px 0px #f6d32d,
-    3px 3px 0px #e25740,
-    4px 4px 0px #f6d32d;
+    -2px -2px 0 #000,
+    0   -2px 0 #000,
+    2px -2px 0 #000,
+    2px  0   0 #000,
+    2px  2px 0 #000,
+    0    2px 0 #000,
+    -2px  2px 0 #000,
+    -2px  0   0 #000;
 }
 
 .title-en {
-  color: #e74c3c;
+  color: white;
   font-weight: 900;
 }
 
-/* 標題與排序列 */
-.list-controls {
+/* ================= 1. 基本篩選條件卡片 (同步帳號管理頁面風格) ================= */
+.filter-card {
+  background-color: #ffffff;
+  border-radius: 18px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  margin-bottom: 18px;
+  border: 1px solid #ffffff;
+}
+
+.filter-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--light-color);
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 10px;
 }
 
 .pool-title-banner {
   display: flex;
-  align-items: center;
+  align-items: baseline;
+  gap: 10px;
   border-left: 5px solid var(--dark-color);
-  padding-left: 14px;
+  padding-left: 12px;
 }
 
-.list-title {
-  font-size: 20px;
+.banner-zh {
+  font-size: 19px;
   font-weight: 900;
   color: #2c3e50;
-  letter-spacing: 0.5px;
 }
 
-.count-num {
-  font-size: 18px;
+.banner-en {
+  font-size: 13px;
   font-weight: 800;
   color: var(--dark-color);
   letter-spacing: 1px;
 }
 
-.sort-options {
+.filter-btn-group {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-outline {
+  background-color: #ffffff;
+  color: var(--dark-color);
+  border: 1.5px solid var(--dark-color);
+  padding: 7px 18px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-outline:hover {
+  background-color: var(--light-color);
+}
+
+.btn-solid {
+  background-color: #1b1e29;
+  color: #ffffff;
+  border: 1.5px solid #1b1e29;
+  padding: 7px 22px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-solid:hover {
+  background-color: var(--dark-color);
+  border-color: var(--dark-color);
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr 1fr;
+  gap: 14px;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-item label {
+  font-size: 13px;
+  font-weight: 800;
+  color: #475569;
+}
+
+.text-input,
+.select-input {
+  padding: 8px 12px;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  background-color: #f8fafc;
+  outline: none;
+  transition: all 0.2s;
+}
+
+.text-input:focus,
+.select-input:focus {
+  border-color: var(--dark-color);
+  background-color: #ffffff;
+}
+
+/* ================= 2. 統計資訊與多選排序列 ================= */
+.summary-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 0 4px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.summary-left {
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.info-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid var(--dark-color);
+  background-color: var(--light-color);
+  color: var(--dark-color);
+  font-weight: 900;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.info-btn:hover {
+  background-color: var(--dark-color);
+  color: #ffffff;
+  transform: scale(1.08);
+}
+
+.summary-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: #2c3e50;
+}
+
+.highlight-num {
+  color: var(--dark-color);
+  font-size: 19px;
+  font-weight: 900;
+}
+
+.sort-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   color: #2c3e50;
   font-weight: 800;
-  font-size: 18x;
+  font-size: 15px;
+  flex-wrap: wrap;
 }
 
 .chip-btn {
   background-color: #ffffff;
-  color : #555;
-  border: 1.5px solid #ccc;
-  padding: 6px 18px;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
+  padding: 6px 14px;
   border-radius: 8px;
   cursor: pointer;
   font-weight: 800;
-  font-size: 14.5px;
+  font-size: 13.5px;
   transition: all 0.2s ease;
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
-
 .chip-btn:hover {
-  background-color: #ffffff;
+  border-color: var(--dark-color);
+  color: var(--dark-color);
 }
 
 .chip-btn.active {
   background-color: var(--dark-color);
+  border-color: var(--dark-color);
   color: #ffffff;
 }
 
@@ -439,29 +823,250 @@ onMounted(() => {
   justify-content: center;
 }
 
-.record-list {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+/* ================= 3. 表格樣式 (與帳號管理頁面一致) ================= */
+.table-wrapper {
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
 }
 
-.empty-list-box {
-  background-color: rgba(255, 255, 255, 0.7);
-  border: 1px dashed var(--dark-color);
-  border-radius: 12px;
+.tox-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.tox-table thead tr {
+  background-color: #1b1e29;
+  color: #ffffff;
+}
+
+.tox-table th {
+  padding: 13px 16px;
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.tox-table tbody tr {
+  border-bottom: 1px solid #edf2f7;
+  transition: background-color 0.15s;
+}
+
+.tox-table tbody tr:hover {
+  background-color: #f8fafc;
+}
+
+/* 被勾選為 FastMCP 知識庫的代表列高亮底色 */
+.tox-table tbody tr.selected-row {
+  background-color: #f0fdfa;
+}
+
+.tox-table td {
+  padding: 13px 16px;
+  vertical-align: middle;
+  font-size: 14px;
+  color: #334155;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.cell-index {
+  font-weight: 800;
+  color: #475569;
+  font-size: 15px;
+}
+
+/* AI 知識庫勾選框與狀態小膠囊 */
+.checkbox-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-wrapper input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--dark-color);
+  margin: 0;
+}
+
+.mcp-tag {
+  font-size: 12px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: #f1f5f9;
+  color: #94a3b8;
+}
+
+.mcp-tag.active {
+  background-color: #ccfbf1;
+  color: #0f766e;
+  border: 1px solid #5eead4;
+}
+
+/* 化學物質名稱與 CAS 資訊 */
+.chem-main-info {
+  margin-bottom: 3px;
+}
+
+.chem-name {
+  font-size: 16px;
+  font-weight: 900;
+  color: #1b1e29;
+  letter-spacing: 0.4px;
+}
+
+.chem-sub-info {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 600;
+}
+
+.chem-sub-info code {
+  background-color: #f1f5f9;
+  color: #334155;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+/* 危害等級標籤 (紅 / 黃 / 灰) */
+.hazard-badge {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  min-width: 136px;
+  text-align: center;
+}
+
+.hazard-high {
+  background-color: #ef5327;
+  color: #ffffff;
+}
+
+.hazard-moderate {
+  background-color: #ffca28;
+  color: #1b1e29;
+}
+
+.hazard-low {
+  background-color: #b0bec5;
+  color: #ffffff;
+}
+
+.hazard-unscored {
+  background-color: #e2e8f0;
+  color: #64748b;
+}
+
+/* 評估狀態標籤 (仿照期刊排名 Q1~Q4) */
+.status-badge {
+  display: inline-block;
+  padding: 5px 14px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  min-width: 125px;
+  text-align: center;
+  border: 1px solid var(--dark-color);
+}
+
+.status-completed {
+  background-color: var(--dark-color);
+  color: #ffffff;
+  border-color: var(--dark-color);
+}
+
+.status-reviewing,
+.status-generating {
+  background-color: #e0f2f1;
+  color: var(--dark-color);
+  border-color: var(--primary-color);
+}
+
+.status-retrieving {
+  background-color: #f5f5f5;
+  color: #666666;
+  border-color: #cccccc;
+}
+
+.time-cell {
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  color: #1b1e29;
+}
+
+/* 操作按鈕群組 (前往 Meta 頁圓鈕 + 刪除 X 圓鈕) */
+.action-icon-group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.meta-link-btn,
+.delete-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid #64748b;
+  background-color: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-weight: 900;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.meta-link-btn:hover {
+  background-color: var(--dark-color);
+  color: #ffffff;
+  border-color: var(--dark-color);
+  transform: scale(1.08);
+}
+
+.delete-btn:hover {
+  background-color: #ffebee;
+  color: #c62828;
+  border-color: #c62828;
+  transform: scale(1.08);
+}
+
+.empty-box {
+  background-color: rgba(255, 255, 255, 0.75);
+  border: 1.5px dashed var(--dark-color);
+  border-radius: 14px;
   padding: 40px 20px;
   text-align: center;
-  color: #555;
-  font-weight: bold;
+  color: #475569;
+  font-weight: 800;
 }
 
-/* 融合 Review 版面配色的頁碼列 (« 首頁 01 02 03 最後 ») */
+/* 頁碼列 (« 首頁 01 02 03 最後 ») */
 .pagination-bar {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 8px;
-  margin-top: 28px;
+  margin-top: 24px;
   padding: 10px 20px;
   background-color: rgba(255, 255, 255, 0.65);
   border-radius: 14px;

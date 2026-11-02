@@ -633,21 +633,25 @@ onUnmounted(() => {
 }
 
 .main-title {
-  color: #1b1e29;
+  color: white;
   font-size: 38px;
   margin-top: 4px;
   margin-bottom: 20px;
   font-weight: 900;
   letter-spacing: 1.5px;
   text-shadow: 
-    1px 1px 0px #f6d32d,
-    2px 2px 0px #f6d32d,
-    3px 3px 0px #e25740,
-    4px 4px 0px #f6d32d;
+    -2px -2px 0 #000,  /* 左上 */
+    0   -2px 0 #000,  /* 正上 */
+    2px -2px 0 #000,  /* 右上 */
+    2px  0   0 #000,  /* 正右 */
+    2px  2px 0 #000,  /* 右下 */
+    0    2px 0 #000,  /* 正下 */
+    -2px  2px 0 #000,  /* 左下 */
+    -2px  0   0 #000;  /* 正左 */
 }
 
 .title-en {
-  color: #e74c3c;
+  color: white;
 }
 
 .content-layout {

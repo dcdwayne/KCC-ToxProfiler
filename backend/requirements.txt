@@ -12,3 +12,4 @@ regex
 google-genai
 requests
 pydantic
+itsdangerous
