@@ -23,20 +23,24 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 # 系統會優先使用清單中的第 1 個模型；當遇到 429 (每日免費額度 20 次用完) 或 503 塞車時，
 # 會自動無縫切換至下一個模型繼續生成報告，確保 DEMO 與測試永不中斷！
 # =====================================================================
-# 依據帳號實際可用模型排列之免費額度備援清單 (由高品質至高額度 Lite 依序遞補)
-FALLBACK_MODELS = [
-    # --- 第一梯隊：高階旗艦 Flash (各擁獨立每日免費額度，寫作與毒理分析品質最佳) ---
+# 1. 寫報告專用模型群 (重視長文結構、毒理推論與格式精準度)
+REPORT_MODELS = [
     "gemini-3.8-flash",
     "gemini-3.7-flash",
     "gemini-3.6-flash",
     "gemini-3.5-flash",
-    # --- 第二梯隊：Omni 分支模型 ---
-    "gemini-omni-1.1-flash",
-    # --- 第三梯隊：高速輕量 Lite 模型 (免費額度最高、速度最快，確保 DEMO 永不斷線) ---
-    "gemini-3.5-flash-lite",
-    "gemini-3.1-flash-lite",
-    "gemini-2.5-flash-lite",
 ]
+
+# 2. Dr. Manhattan 智能助理專用模型群 (重視極速回應與低延遲)
+CHAT_MODELS = [
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.7-flash",
+    "gemini-3.8-flash",
+]
+
+# 向下相容別名
+FALLBACK_MODELS = REPORT_MODELS
 
 # 讓原有的 LLM_MODEL 變數直接指向備援清單，向下相容無須改動下方函式呼叫
 LLM_MODEL = FALLBACK_MODELS

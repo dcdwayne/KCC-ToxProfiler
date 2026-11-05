@@ -140,6 +140,77 @@
               </div>
             </div>
           </template>
+
+          <!-- ================= 4. 歷史紀錄管理 (HistoryView) 說明內容 ================= -->
+          <template v-else-if="page === 'history'">
+            <div class="step-card">
+              <div class="step-badge">功能 1</div>
+              <div class="step-content">
+                <h4>勾選綁定 FastMCP / Dr. Manhattan 問答知識庫</h4>
+                <ul class="guide-list">
+                  <li>點擊每列最左側的 <strong>「勾選方框」</strong>，即可將該筆評估紀錄設定為 <strong>Dr. Manhattan 智能助理（FastMCP）</strong>回答使用者問題時的實證資料來源。</li>
+                  <li><strong>單一化學物質互斥勾選機制</strong>：為確保 AI 問答引用之數據唯一且一致，<strong>每種化學物質僅限勾選一筆代表紀錄</strong>（當勾選同物質的新紀錄時，舊紀錄將自動取消勾選），建議優先勾選狀態為 <span class="badge-demo status-q1">COMPLETED</span> 之完整評估檔案。</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="step-card">
+              <div class="step-badge">功能 2</div>
+              <div class="step-content">
+                <h4>多維度組合排序（支援主次順位疊加）</h4>
+                <p>右上角提供<strong>「化學物質名稱」</strong>、<strong>「危害等級」</strong>、<strong>「狀態」</strong>與<strong>「評估時間（由近到遠）」</strong>四種排序按鈕。支援<strong>多選組合排序</strong>，系統會依據您點擊的先後順序於按鈕右側顯示 <strong><code>1</code></strong>、<strong><code>2</code></strong> 優先權重標記；再次點擊已選中的按鈕即可取消該排序條件。</p>
+              </div>
+            </div>
+
+            <div class="step-card">
+              <div class="step-badge">功能 3</div>
+              <div class="step-content">
+                <h4>危害等級與評估進度狀態標籤判讀</h4>
+                <ul class="guide-list">
+                  <li><strong>量化危害等級標籤</strong>：
+                    <span class="badge-demo cohort">HIGH RISK (≥70)</span>
+                    <span class="badge-demo invivo">MODERATE RISK (40~69)</span>
+                    <span class="badge-demo invitro">LOW RISK (&lt;40)</span>
+                  </li>
+                  <li><strong>評估執行狀態標籤</strong>：
+                    <div class="sub-box">
+                      <div><span class="badge-demo status-q1">COMPLETED</span> 民眾版與專家版雙軌報告皆已生成完畢，可供完整查閱與 AI 問答。</div>
+                      <div><span class="badge-demo status-q2">GENERATING_EXPERT / PUBLIC</span> AI 報告正於背景分段生成中。</div>
+                      <div><span class="badge-demo status-q2">REVIEWING</span> 尚停留在系統性文獻回顧階段，尚未執行統合分析算分。</div>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="step-card">
+              <div class="step-badge">功能 4</div>
+              <div class="step-content">
+                <h4>一鍵回溯評估報告與安全刪除確認機制</h4>
+                <ul class="guide-list">
+                  <li><strong>回溯評估成果</strong>：點擊每列右側的圓形 <strong>「跳轉圖示按鈕 (↗)」</strong>，即可直接前往該筆歷史紀錄的 Meta-analysis 頁面檢視 10 KCC 儀表板與雙軌報告。</li>
+                  <li><strong>安全刪除確認</strong>：點擊最右側 <strong><code>X</code></strong> 按鈕將彈出安全警告視窗，確認後系統將同步清除該筆評估單 (<code>evaluations</code>) 與其關聯之文獻證據池 (<code>evaluation_evidence</code>)，但不會影響 PubMed 原始文獻庫。</li>
+                </ul>
+              </div>
+            </div>
+          </template>
+
+          <template v-else-if="page === 'account'">
+            <div class="step-card">
+              <div class="step-badge">功能 1</div>
+              <div class="step-content">
+                <h4>權限核准與角色指派 (RBAC 動態授權)</h4>
+                <p>新申請之帳號預設為「待審核 (Pending)」並自動置頂顯示。點擊右側「✓ 通過」或「✕ 未通過」即可完成審核並自動記錄台灣時區之<strong>核定時間</strong>；您亦可直接透過下拉選單調整其權限角色（系統管理者／專家／會員）或切換帳號啟停狀態。</p>
+              </div>
+            </div>
+            <div class="step-card">
+              <div class="step-badge">功能 2</div>
+              <div class="step-content">
+                <h4>使用者登入紀錄與時間區間查詢 (Audit Logs)</h4>
+                <p>切換至「使用者登入紀錄」頁籤，可設定<strong>開始日期至結束日期</strong>（或點擊今日、近 7 天、近 30 天快速篩選），完整追蹤所有成功登入、訪客進入與異常攔截（密碼錯誤、待審核攔截、停權攔截）之來源 IP 與時間紀錄。</p>
+              </div>
+            </div>
+          </template>
         </div>
 
         <!-- 底部確認按鈕 -->
@@ -161,7 +232,7 @@ const props = defineProps({
   },
   page: {
     type: String,
-    default: 'home' // 'home' | 'review' | 'meta'
+    default: 'home' // 'home' | 'review' | 'meta' | 'history'
   }
 })
 
@@ -182,6 +253,16 @@ const GUIDE_META = {
     subtitle: 'STEP 3 : WEIGHT OF EVIDENCE & AI SYNTHESIS',
     title: '證據權重危害辨識統合分析使用說明',
     intro: '本頁面根據專家精鍊後的最終實證文獻池，量化計算 10 KCC 證據強度與總體危害分數 (Hazard Score)，並提供 AI 生成之「民眾科普版」與「專家法規版」雙軌評估報告。'
+  },
+  history: {
+    subtitle: 'STEP 4 : HISTORICAL RECORDS & FASTMCP KNOWLEDGE BASE',
+    title: '歷史紀錄管理與 AI 知識庫綁定使用說明',
+    intro: '本頁面集中管理所有化學物質之歷史危害辨識評估檔案，支援多維度組合排序與成果回溯，並提供勾選綁定功能，作為「Dr. Manhattan」AI 助手（FastMCP）回答問題時之唯一實證資料來源。'
+  },
+  account: {
+  subtitle: 'STEP 5 : ACCOUNT APPROVAL & LOGIN AUDIT LOGS',
+  title: '帳號權限核准與登入稽核紀錄使用說明',
+  intro: '本頁面專供「系統管理者」審核新註冊帳號之權限申請、動態調整 RBAC 四級角色與啟停狀態，並提供支援時間區間查詢之使用者登入稽核紀錄 (Audit Logs)。'
   }
 }
 
@@ -394,6 +475,15 @@ const currentGuide = computed(() => {
 .badge-demo.cohort { background-color: #e74c3c; }
 .badge-demo.invivo { background-color: #f39c12; }
 .badge-demo.invitro { background-color: #95a5a6; }
+.badge-demo.status-q1 {
+  background-color: var(--dark-color);
+  color: #ffffff;
+}
+.badge-demo.status-q2 {
+  background-color: #e0f2f1;
+  color: var(--dark-color);
+  border: 1px solid var(--primary-color);
+}
 
 .apa-demo {
   background-color: #e3f2fd;

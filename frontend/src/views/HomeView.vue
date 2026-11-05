@@ -4,7 +4,7 @@
     <header class="header-section">
       <h2 class="main-title">毒理學文獻條件檢索與危害辨識評估系統</h2>
       <div class="sub-title-banner">
-        <span class="step-pill">STEP 01</span>
+        <span class="step-pill">Intro</span>
         <h3 class="sub-title">依據科學文獻資料，系統化致癌物之危害辨識評估流程</h3>
       </div>
     </header>
@@ -303,17 +303,21 @@ const submitFilter = async () => {
 
 /* 主標題：#1b1e29 字體搭配 #e25740 立體塊狀陰影 */
 .main-title {
-  color: #1b1e29;
+  color: white;
   font-size: 36px;
   margin-top: 2px;
   margin-bottom: 12px;
   font-weight: 900;
   letter-spacing: 1.5px;
   text-shadow: 
-    1px 1px 0px #f6d32d,
-    2px 2px 0px #f6d32d,
-    3px 3px 0px #e25740,
-    4px 4px 0px #f6d32d;
+    -2px -2px 0 #000,  /* 左上 */
+    0   -2px 0 #000,  /* 正上 */
+    2px -2px 0 #000,  /* 右上 */
+    2px  0   0 #000,  /* 正右 */
+    2px  2px 0 #000,  /* 右下 */
+    0    2px 0 #000,  /* 正下 */
+    -2px  2px 0 #000,  /* 左下 */
+    -2px  0   0 #000;  /* 正左 */
 }
 
 .sub-title-banner {

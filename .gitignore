@@ -9,3 +9,7 @@ __pycache__/
 
 # 忽略體積龐大的原始 CSV (或視需求保留)
 backend/data/*.csv
+
+# 忽略生成的 ER 圖檔與程式碼
+backend/gen_er.py
+backend/er-diagram.png
