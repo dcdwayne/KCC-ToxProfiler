@@ -6,12 +6,16 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.database import SessionLocal
-from app.models.user import User, UserLoginLog
+from app.models.user import User, UserLoginLog, UserDailyQuota
 
 router = APIRouter(prefix="/api/admin", tags=["Account & RBAC Management"])
 
 # 台灣標準時間 (UTC+8)
 TW_TZ = timezone(timedelta(hours=8))
+
+# 會員每日預設額度上限 (與 chat.py 保持一致)
+MEMBER_DAILY_QUESTION_LIMIT = 10
+MEMBER_DAILY_TOKEN_LIMIT = 50000
 
 
 def get_db():
@@ -50,7 +54,7 @@ def require_system_admin(request: Request, db: Session = Depends(get_db)) -> Use
 
 
 # =====================================================================
-# API 1: 查詢所有註冊帳號與權限核准清單 (支援多條件篩選)
+# API 1: 查詢所有註冊帳號與權限核准清單 (含今日 AI 提問次數與 Token 消耗)
 # =====================================================================
 @router.get("/users")
 def list_users_for_approval(
@@ -87,17 +91,27 @@ def list_users_for_approval(
     if account_status and account_status != "ALL":
         query = query.filter(User.account_status == account_status)
 
-    # 統計各狀態數量供前端頂部バッジ顯示
     pending_count = db.query(User).filter(User.approval_status == "PENDING").count()
-
-    # 預設讓「待審核 (PENDING)」排最前面，其次依 ID 由新到舊排序
     users = query.order_by(User.id.desc()).all()
+
+    # 一次撈出所有使用者「今日 (台灣時區)」的 AI 額度消耗紀錄
+    today_tw = datetime.now(TW_TZ).date()
+    today_quotas = (
+        db.query(UserDailyQuota)
+        .filter(UserDailyQuota.usage_date == today_tw)
+        .all()
+    )
+    quota_map = {q.user_id: q for q in today_quotas}
 
     items = []
     for u in users:
-        # 只有已審核 (APPROVED 或 REJECTED) 的紀錄才回傳核定時間
         is_audited = u.approval_status in ("APPROVED", "REJECTED")
         approved_time_str = format_to_taiwan_time(u.approved_at) if is_audited else None
+
+        q_row = quota_map.get(u.id)
+        today_q_used = q_row.question_count if q_row else 0
+        today_t_used = q_row.total_tokens if q_row else 0
+        is_unlimited = u.role in ("系統管理者", "專家")
 
         items.append({
             "id": u.id,
@@ -110,17 +124,25 @@ def list_users_for_approval(
             "approval_status": u.approval_status,
             "account_status": u.account_status,
             "login_count": u.login_count or 0,
+            # 今日 AI 額度欄位
+            "is_unlimited_quota": is_unlimited,
+            "today_questions": today_q_used,
+            "question_limit": None if is_unlimited else MEMBER_DAILY_QUESTION_LIMIT,
+            "today_tokens": today_t_used,
+            "token_limit": None if is_unlimited else MEMBER_DAILY_TOKEN_LIMIT,
+            # 時間與自身標記
             "approved_at_tw": approved_time_str,
             "created_at_tw": format_to_taiwan_time(u.created_at) or "--",
             "is_self": (u.id == current_admin.id)
         })
 
-    # 將 PENDING 待審核項目置頂，方便管理員第一時間處理
+    # 將 PENDING 待審核項目置頂
     items.sort(key=lambda x: (0 if x["approval_status"] == "PENDING" else 1, -x["id"]))
 
     return {
         "total": len(items),
         "pending_total": pending_count,
+        "date_tw": str(today_tw),
         "users": items
     }
 
@@ -145,7 +167,6 @@ def update_user_permission(
     if not target:
         raise HTTPException(status_code=404, detail=f"找不到使用者 ID: {user_id}")
 
-    # 安全防呆：禁止系統管理者將「自己」停權、退回待審核或降級角色
     if target.id == current_admin.id:
         if payload.account_status and payload.account_status != "ACTIVE":
             raise HTTPException(status_code=400, detail="安全限制：無法將您目前登入的管理員帳號設為停用！")
@@ -154,25 +175,21 @@ def update_user_permission(
         if payload.role and payload.role != "系統管理者":
             raise HTTPException(status_code=400, detail="安全限制：無法調降您目前登入的系統管理者角色！")
 
-    # 1. 更新權限角色
     if payload.role is not None:
         if payload.role not in ("系統管理者", "專家", "會員"):
             raise HTTPException(status_code=400, detail="無效的權限角色名稱")
         target.role = payload.role
 
-    # 2. 更新確認狀態 (審核狀態) 與核定時間
     if payload.approval_status is not None:
         if payload.approval_status not in ("PENDING", "APPROVED", "REJECTED"):
             raise HTTPException(status_code=400, detail="無效的確認狀態代碼")
         target.approval_status = payload.approval_status
 
-        # 規則：已審核 (通過/未通過) 紀錄當下核定時間；若改回待審核則清空核定時間
         if payload.approval_status in ("APPROVED", "REJECTED"):
             target.approved_at = datetime.now(timezone.utc)
         else:
             target.approved_at = None
 
-    # 3. 更新帳號啟停狀態
     if payload.account_status is not None:
         if payload.account_status not in ("ACTIVE", "DISABLED"):
             raise HTTPException(status_code=400, detail="無效的帳號狀態代碼")
@@ -196,7 +213,35 @@ def update_user_permission(
 
 
 # =====================================================================
-# API 3: 查詢使用者登入紀錄 Log (支援台灣時區時間區間查詢與多條件過濾)
+# API 3: 重置特定使用者「今日」的 AI 提問額度 (DELETE /api/admin/users/{user_id}/quota)
+# =====================================================================
+@router.delete("/users/{user_id}/quota")
+def reset_user_today_quota(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_system_admin)
+):
+    today_tw = datetime.now(TW_TZ).date()
+    quota_row = (
+        db.query(UserDailyQuota)
+        .filter_by(user_id=user_id, usage_date=today_tw)
+        .first()
+    )
+    if quota_row:
+        quota_row.question_count = 0
+        quota_row.prompt_tokens = 0
+        quota_row.completion_tokens = 0
+        quota_row.total_tokens = 0
+        db.commit()
+
+    return {
+        "message": "已成功將該帳號今日的 AI 提問次數與 Token 消耗歸零重置！",
+        "user_id": user_id
+    }
+
+
+# =====================================================================
+# API 4: 查詢使用者登入紀錄 Log (支援台灣時區時間區間查詢與多條件過濾)
 # =====================================================================
 @router.get("/logs")
 def list_user_login_logs(
@@ -210,7 +255,6 @@ def list_user_login_logs(
 ):
     query = db.query(UserLoginLog)
 
-    # 1. 台灣時區 (UTC+8) 時間區間過濾
     if start_date.strip():
         try:
             start_dt_tw = datetime.strptime(start_date.strip(), "%Y-%m-%d").replace(
@@ -229,7 +273,6 @@ def list_user_login_logs(
         except ValueError:
             raise HTTPException(status_code=400, detail="結束日期格式錯誤，請使用 YYYY-MM-DD")
 
-    # 2. 關鍵字過濾 (信箱 / 姓名 / IP)
     kw = keyword.strip()
     if kw:
         query = query.filter(
@@ -240,11 +283,9 @@ def list_user_login_logs(
             )
         )
 
-    # 3. 角色過濾
     if role and role != "ALL":
         query = query.filter(UserLoginLog.role == role)
 
-    # 4. 登入結果過濾
     if login_result and login_result != "ALL":
         query = query.filter(UserLoginLog.login_result == login_result)
 

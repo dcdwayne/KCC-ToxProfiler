@@ -104,7 +104,7 @@
           </span>
         </div>
         <div class="summary-right">
-          <span class="legend-hint">💡 提示：變更「權限角色」或點擊「通過／不通過」將立即同步生效</span>
+          <span class="legend-hint">⚡ 今日額度統計日期：{{ quotaDateTw || '今日' }}（每日 00:00 自動重置）</span>
         </div>
       </div>
 
@@ -115,14 +115,15 @@
         <table class="tox-table">
           <thead>
             <tr>
-              <th style="width: 48px;">#</th>
-              <th style="min-width: 220px;">基本帳號資料 (信箱 / 姓名 / 單位職稱 / 電話)</th>
-              <th style="width: 110px; text-align: center;">帳號狀態</th>
-              <th style="width: 85px; text-align: center;">登入次數</th>
-              <th style="width: 135px; text-align: center;">權限角色</th>
-              <th style="width: 155px; text-align: center;">確認狀態</th>
-              <th style="width: 155px; text-align: center;">核定時間 (台灣時區)</th>
-              <th style="width: 175px; text-align: center;">審核操作</th>
+              <th style="width: 44px;">#</th>
+              <th style="min-width: 210px;">基本帳號資料 (信箱 / 姓名 / 單位職稱 / 電話)</th>
+              <th style="width: 100px; text-align: center;">帳號狀態</th>
+              <th style="width: 78px; text-align: center;">登入次數</th>
+              <th style="width: 195px; text-align: center;">今日 AI 額度 (次數 / Tokens)</th>
+              <th style="width: 125px; text-align: center;">權限角色</th>
+              <th style="width: 145px; text-align: center;">確認狀態</th>
+              <th style="width: 145px; text-align: center;">核定時間 (台灣)</th>
+              <th style="width: 165px; text-align: center;">審核操作</th>
             </tr>
           </thead>
           <tbody>
@@ -151,7 +152,7 @@
                 <div class="user-reg-time">申請時間：{{ u.created_at_tw }}</div>
               </td>
 
-              <!-- 3. 帳號狀態 (ACTIVE 啟用 / DISABLED 停用) -->
+              <!-- 3. 帳號狀態 -->
               <td class="text-center">
                 <button
                   class="status-toggle-btn"
@@ -169,7 +170,51 @@
                 <span class="login-count-badge">{{ u.login_count }} 次</span>
               </td>
 
-              <!-- 5. 權限角色 (支援直接下拉變更) -->
+              <!-- 5. 今日 AI 額度消耗 (次數 / Tokens + 一鍵重置) -->
+              <td class="text-center">
+                <!-- 專家與系統管理者：無上限 -->
+                <div v-if="u.is_unlimited_quota" class="quota-cell-box unlimited">
+                  <div class="q-top-line">
+                    <span class="unlim-pill">∞ 無上限</span>
+                    <span class="q-count-text">{{ u.today_questions }} 次</span>
+                  </div>
+                  <div class="q-token-text">
+                    今日消耗 {{ (u.today_tokens || 0).toLocaleString() }} Tokens
+                  </div>
+                </div>
+
+                <!-- 會員：顯示每日 10 次 / 50,000 Tokens 與進度條 -->
+                <div v-else class="quota-cell-box" :class="getMemberQuotaBoxClass(u)">
+                  <div class="q-top-line">
+                    <span class="q-count-text">
+                      <strong>{{ u.today_questions }}</strong> / {{ u.question_limit }} 次
+                    </span>
+                    <button
+                      v-if="u.today_questions > 0 || u.today_tokens > 0"
+                      class="reset-quota-btn"
+                      :disabled="updatingUserId === u.id"
+                      @click="handleResetUserQuota(u)"
+                      title="將此帳號今日已使用的提問次數與 Token 歸零重置"
+                    >
+                      ↺ 重置
+                    </button>
+                  </div>
+
+                  <div class="mini-progress-track">
+                    <div
+                      class="mini-progress-fill"
+                      :class="getMemberQuotaBarClass(u)"
+                      :style="{ width: getMemberQuotaPercent(u) + '%' }"
+                    ></div>
+                  </div>
+
+                  <div class="q-token-text">
+                    {{ (u.today_tokens || 0).toLocaleString() }} / {{ (u.token_limit || 50000).toLocaleString() }} Tokens
+                  </div>
+                </div>
+              </td>
+
+              <!-- 6. 權限角色 -->
               <td class="text-center">
                 <select
                   :value="u.role"
@@ -184,14 +229,14 @@
                 </select>
               </td>
 
-              <!-- 6. 確認狀態 (待審核 vs 已審核：通過 / 未通過) -->
+              <!-- 7. 確認狀態 -->
               <td class="text-center">
                 <span class="approval-badge" :class="getApprovalBadgeClass(u.approval_status)">
                   {{ formatApprovalLabel(u.approval_status) }}
                 </span>
               </td>
 
-              <!-- 7. 核定時間 (已審核的才會有時間) -->
+              <!-- 8. 核定時間 -->
               <td class="text-center time-cell">
                 <span v-if="u.approved_at_tw" class="approved-time-text">
                   {{ u.approved_at_tw }}
@@ -199,7 +244,7 @@
                 <span v-else class="unapproved-dash">-- (待審核)</span>
               </td>
 
-              <!-- 8. 審核操作按鈕 -->
+              <!-- 9. 審核操作按鈕 -->
               <td class="text-center">
                 <div class="audit-btn-group">
                   <button
@@ -231,7 +276,7 @@
         目前篩選條件下無符合的帳號申請紀錄。
       </div>
 
-      <!-- 權限核准頁碼列 (« 首頁 01 02 03 最後 ») -->
+      <!-- 權限核准頁碼列 -->
       <div class="pagination-bar" v-if="approvalTotalPages > 1">
         <button class="page-nav-btn" :disabled="approvalPage === 1" @click="approvalPage = 1">
           « 首頁
@@ -430,6 +475,7 @@ const activeTab = ref('approval')
 // --- 子頁面 1：權限核准狀態 ---
 const userList = ref([])
 const pendingTotalCount = ref(0)
+const quotaDateTw = ref('')
 const isLoadingUsers = ref(false)
 const updatingUserId = ref(null)
 const approvalPage = ref(1)
@@ -509,7 +555,30 @@ const switchSubTab = async (tabName) => {
 }
 
 // =====================================================================
-// API 呼叫：權限核准管理
+// 今日 AI 額度百分比與顏色計算
+// =====================================================================
+const getMemberQuotaPercent = (u) => {
+  const qPct = u.question_limit ? (u.today_questions / u.question_limit) * 100 : 0
+  const tPct = u.token_limit ? (u.today_tokens / u.token_limit) * 100 : 0
+  return Math.min(100, Math.round(Math.max(qPct, tPct)))
+}
+
+const getMemberQuotaBoxClass = (u) => {
+  const pct = getMemberQuotaPercent(u)
+  if (pct >= 100) return 'q-box-danger'
+  if (pct >= 80) return 'q-box-warning'
+  return 'q-box-normal'
+}
+
+const getMemberQuotaBarClass = (u) => {
+  const pct = getMemberQuotaPercent(u)
+  if (pct >= 100) return 'bar-danger'
+  if (pct >= 80) return 'bar-warning'
+  return 'bar-normal'
+}
+
+// =====================================================================
+// API 呼叫：權限核准管理與重置額度
 // =====================================================================
 const fetchUsers = async () => {
   isLoadingUsers.value = true
@@ -527,6 +596,7 @@ const fetchUsers = async () => {
     const data = await res.json()
     userList.value = data.users || []
     pendingTotalCount.value = data.pending_total ?? 0
+    quotaDateTw.value = data.date_tw || ''
     approvalPage.value = 1
   } catch (err) {
     console.error('載入帳號清單失敗:', err)
@@ -543,7 +613,26 @@ const resetApprovalFilters = async () => {
   await fetchUsers()
 }
 
-// 審核帳號 (通過 APPROVED / 未通過 REJECTED)
+// 一鍵重置該名會員今日的 AI 提問次數與 Token 消耗
+const handleResetUserQuota = async (user) => {
+  updatingUserId.value = user.id
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/users/${user.id}/quota`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || '重置額度失敗')
+
+    user.today_questions = 0
+    user.today_tokens = 0
+  } catch (err) {
+    alert(err.message)
+  } finally {
+    updatingUserId.value = null
+  }
+}
+
 const handleAuditUser = async (user, newStatus) => {
   updatingUserId.value = user.id
   try {
@@ -578,7 +667,7 @@ const handleChangeUserRole = async (user, newRole) => {
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.detail || '更新角色失敗')
-    user.role = data.user.role
+    await fetchUsers()
   } catch (err) {
     alert(err.message)
     await fetchUsers()
@@ -713,7 +802,7 @@ onMounted(() => {
 
 <style scoped>
 .account-page {
-  max-width: 1220px;
+  max-width: 1260px;
   margin: 20px auto 40px auto;
   padding: 0 20px;
 }
@@ -1025,8 +1114,8 @@ onMounted(() => {
 }
 
 .tox-table th {
-  padding: 13px 14px;
-  font-size: 13.5px;
+  padding: 13px 12px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.4px;
   white-space: nowrap;
@@ -1046,9 +1135,9 @@ onMounted(() => {
 }
 
 .tox-table td {
-  padding: 13px 14px;
+  padding: 12px 12px;
   vertical-align: middle;
-  font-size: 14px;
+  font-size: 13.5px;
   color: #334155;
 }
 
@@ -1071,7 +1160,7 @@ onMounted(() => {
 .user-email {
   font-weight: 900;
   color: #1b1e29;
-  font-size: 15px;
+  font-size: 14.5px;
 }
 
 .self-tag {
@@ -1086,8 +1175,8 @@ onMounted(() => {
 .user-sub-info {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
-  font-size: 12.5px;
+  gap: 10px;
+  font-size: 12px;
   color: #475569;
   font-weight: 600;
   margin-bottom: 3px;
@@ -1099,15 +1188,15 @@ onMounted(() => {
   font-weight: 600;
 }
 
-/* 帳號狀態按鈕 */
 .status-toggle-btn {
-  padding: 5px 12px;
+  padding: 5px 10px;
   border-radius: 20px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .status-toggle-btn.acc-active {
@@ -1131,17 +1220,110 @@ onMounted(() => {
   background-color: #f1f5f9;
   color: #1e293b;
   font-weight: 800;
-  font-size: 13px;
-  padding: 4px 10px;
+  font-size: 12.5px;
+  padding: 4px 9px;
   border-radius: 8px;
+  white-space: nowrap;
+}
+
+/* ================= 今日 AI 額度欄位專屬樣式 ================= */
+.quota-cell-box {
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  padding: 7px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 170px;
+}
+
+.quota-cell-box.unlimited {
+  background-color: #f0fdf4;
+  border-color: #86efac;
+}
+
+.quota-cell-box.q-box-warning {
+  background-color: #fffbeb;
+  border-color: #fcd34d;
+}
+
+.quota-cell-box.q-box-danger {
+  background-color: #fef2f2;
+  border-color: #fca5a5;
+}
+
+.q-top-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+}
+
+.unlim-pill {
+  background-color: #dcfce7;
+  color: #166534;
+  font-size: 11.5px;
+  font-weight: 900;
+  padding: 1px 7px;
+  border-radius: 8px;
+}
+
+.q-count-text {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #1e293b;
+}
+
+.reset-quota-btn {
+  background-color: #ffffff;
+  color: var(--dark-color);
+  border: 1px solid var(--dark-color);
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.reset-quota-btn:hover:not(:disabled) {
+  background-color: var(--dark-color);
+  color: #ffffff;
+}
+
+.mini-progress-track {
+  width: 100%;
+  height: 6px;
+  background-color: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.mini-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.bar-normal { background-color: var(--dark-color); }
+.bar-warning { background-color: #f59e0b; }
+.bar-danger { background-color: #ef4444; }
+
+.q-token-text {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 700;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
 }
 
 /* 角色下拉與徽章 */
 .role-select,
 .role-pill {
-  padding: 5px 10px;
+  padding: 5px 8px;
   border-radius: 8px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 800;
   border: 1.5px solid transparent;
 }
@@ -1170,12 +1352,11 @@ onMounted(() => {
   border-color: #cbd5e1;
 }
 
-/* 確認狀態徽章 (仿照系統紅/黃/深青色系) */
 .approval-badge {
   display: inline-block;
-  padding: 5px 12px;
+  padding: 5px 10px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -1197,7 +1378,7 @@ onMounted(() => {
 
 .time-cell {
   font-variant-numeric: tabular-nums;
-  font-size: 13.5px;
+  font-size: 13px;
 }
 
 .approved-time-text {
@@ -1208,24 +1389,24 @@ onMounted(() => {
 .unapproved-dash {
   color: #94a3b8;
   font-weight: 600;
-  font-size: 12.5px;
+  font-size: 12px;
 }
 
-/* 審核操作按鈕群 */
 .audit-btn-group {
   display: inline-flex;
-  gap: 6px;
+  gap: 5px;
 }
 
 .audit-btn {
-  padding: 5px 10px;
+  padding: 5px 9px;
   border-radius: 6px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
   border: 1.5px solid #cbd5e1;
   background-color: #ffffff;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
 .audit-btn.approve:hover:not(:disabled) {
@@ -1245,7 +1426,6 @@ onMounted(() => {
   cursor: not-allowed;
 }
 
-/* 登入紀錄專用バッジ */
 .ip-code {
   background-color: #f1f5f9;
   color: #334155;
@@ -1263,26 +1443,10 @@ onMounted(() => {
   font-weight: 800;
 }
 
-.log-success {
-  background-color: var(--dark-color);
-  color: #ffffff;
-}
-
-.log-guest {
-  background-color: #e0f2f1;
-  color: var(--dark-color);
-  border: 1px solid var(--primary-color);
-}
-
-.log-pending {
-  background-color: #ffca28;
-  color: #1b1e29;
-}
-
-.log-failed {
-  background-color: #ef5327;
-  color: #ffffff;
-}
+.log-success { background-color: var(--dark-color); color: #ffffff; }
+.log-guest { background-color: #e0f2f1; color: var(--dark-color); border: 1px solid var(--primary-color); }
+.log-pending { background-color: #ffca28; color: #1b1e29; }
+.log-failed { background-color: #ef5327; color: #ffffff; }
 
 .empty-box {
   background-color: rgba(255, 255, 255, 0.75);

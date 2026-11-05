@@ -1,5 +1,5 @@
 # backend/app/models/user.py
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, UniqueConstraint, func
 from app.database import Base
 
 
@@ -48,3 +48,23 @@ class UserLoginLog(Base):
     login_result = Column(String(30), nullable=False)
     ip_address = Column(String(60), nullable=True)
     login_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
+
+
+class UserDailyQuota(Base):
+    """【第十三張表：user_daily_quotas】使用者每日 Gemini API 提問次數與 Token 額度追蹤表"""
+    __tablename__ = "user_daily_quotas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    usage_date = Column(Date, nullable=False, index=True)  # 台灣時區日期 (YYYY-MM-DD)
+
+    question_count = Column(Integer, nullable=False, default=0)
+    prompt_tokens = Column(Integer, nullable=False, default=0)
+    completion_tokens = Column(Integer, nullable=False, default=0)
+    total_tokens = Column(Integer, nullable=False, default=0)
+
+    last_asked_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "usage_date", name="uq_user_daily_quota"),
+    )
