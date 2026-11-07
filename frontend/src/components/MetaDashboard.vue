@@ -3,7 +3,8 @@
     <div class="dashboard-header">
       <div class="header-left-group">
         <span class="section-subtitle">MECHANISM ATTRIBUTION / WEIGHT OF EVIDENCE</span>
-        <span class="legend-hint">💡 標題括號數字如 <strong>(12)</strong> 代表高影響力期刊 (Q1/Q2) 文獻篇數</span>
+        <span v-if="!isEn" class="legend-hint">💡 標題括號數字如 <strong>(12)</strong> 代表高影響力期刊 (Q1/Q2) 文獻篇數</span>
+        <span v-else class="legend-hint">💡 Numbers in parentheses like <strong>(12)</strong> indicate high-impact (Q1/Q2) journal papers</span>
       </div>
       <span class="model-tag">10 Key Characteristics Model</span>
     </div>
@@ -14,12 +15,12 @@
         <div class="card-top">
           <div class="kc-top-meta">
             <span class="kc-id">KC {{ kcc.id }}</span>
-            <span class="total-papers-tag" title="納入統合分析之總文獻篇數">
-              共 {{ kcc.paper_count ?? 0 }} 篇
+            <span class="total-papers-tag" :title="t('納入統合分析之總文獻篇數', 'Total papers included in meta-analysis')">
+              {{ isEn ? `${kcc.paper_count ?? 0} papers` : `共 ${kcc.paper_count ?? 0} 篇` }}
             </span>
           </div>
 
-          <h4 class="kc-title" :title="`高影響力期刊 (Q1/Q2): ${kcc.high_impact_papers ?? 0} 篇`">
+          <h4 class="kc-title" :title="isEn ? `High-Impact Journals (Q1/Q2): ${kcc.high_impact_papers ?? 0} papers` : `高影響力期刊 (Q1/Q2): ${kcc.high_impact_papers ?? 0} 篇`">
             {{ kcc.title }}
             <span class="high-impact-count">({{ kcc.high_impact_papers ?? 0 }})</span>
           </h4>
@@ -62,6 +63,8 @@
 </template>
 
 <script setup>
+import { isEn, t } from '../utils/i18nStore'
+
 defineProps({
   kccData: {
     type: Array,

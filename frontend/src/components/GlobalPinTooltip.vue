@@ -11,7 +11,7 @@
       <!-- 頂部狀態與關閉按鈕列 -->
       <div class="gpt-header">
         <span class="gpt-badge">
-          {{ pinned ? '📌 已固定（可直接反白選取複製）' : '💡 點擊此標籤可固定視窗' }}
+          {{ pinned ? t('📌 已固定（可直接反白選取複製）', '📌 Pinned (Select text to copy)') : t('💡 點擊此標籤可固定視窗', '💡 Click to pin tooltip') }}
         </span>
 
         <button
@@ -34,6 +34,7 @@
 </template>
 
 <script setup>
+import { t } from '../utils/i18nStore'
 import { ref, reactive, onMounted, onBeforeUnmount } from 'vue'
 
 const visible = ref(false)

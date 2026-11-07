@@ -10,7 +10,7 @@
         @click="selectSubTab(idx)"
       >
         <span class="tab-dot"></span>
-        <span class="tab-title">{{ tab.tab_label }}</span>
+        <span class="tab-title">{{ formatExpertTabLabel(tab.tab_label, idx) }}</span>
       </button>
     </div>
 
@@ -19,18 +19,20 @@
       <div class="report-header">
         <div class="header-left-meta">
           <span class="section-subtitle">
-            REGULATORY TOXICOLOGY SYNTHESIS / 專家版統合分析報告 (移動滑鼠至 APA 引用可檢視 PMID)
+            {{ t('REGULATORY TOXICOLOGY SYNTHESIS / 專家版統合分析報告 (移動滑鼠至 APA 引用可檢視 PMID，點擊可固定視窗)', 'REGULATORY TOXICOLOGY SYNTHESIS (Hover over APA citations to view PMID, click to pin)') }}
           </span>
-          <h3 class="current-chapter-title" v-if="currentTab">{{ currentTab.full_title }}</h3>
+          <h3 class="current-chapter-title" v-if="currentTab">
+            {{ formatExpertFullTitle(currentTab.full_title, activeSubTabIdx) }}
+          </h3>
         </div>
 
         <div class="header-right-actions">
           <button v-if="isTyping" class="skip-btn" @click="finishTypingImmediately">
-            ⚡ 立即顯示全文
+            {{ t('⚡ 立即顯示全文', '⚡ Show Full Text') }}
           </button>
           <div v-if="isFinished" class="completion-badge">
             <span class="sparkle-icon">✨</span>
-            <span>專家版評估報告生成完畢</span>
+            <span>{{ t('專家版評估報告生成完畢', 'Expert Evaluation Report Ready') }}</span>
           </div>
         </div>
       </div>
@@ -46,8 +48,9 @@
         <div v-if="isFinished" class="completion-footer-banner">
           <div class="footer-check">✓</div>
           <div class="footer-text">
-            <strong>Weight of Evidence (WoE) 專家章節已完整載入：</strong>
-            <span>將滑鼠移至內文藍底引用標記（如 <em>(Author et al., Year)</em>）即可直接查閱原始文獻 PMID 編號。</span>
+            <strong>{{ t('Weight of Evidence (WoE) 專家章節已完整載入：', 'Weight of Evidence (WoE) Expert Chapter Loaded: ') }}</strong>
+            <span v-if="!isEn">將滑鼠移至內文藍底引用標記（如 <em>(Author et al., Year)</em>）即可查閱原始文獻 PMID 編號，點擊引用標籤可固定視窗以複製文字。</span>
+            <span v-else>Hover over any blue APA citation (e.g., <em>(Author et al., Year)</em>) to view its PubMed PMID, or click the citation to pin the tooltip for copying.</span>
           </div>
         </div>
       </transition>
@@ -57,6 +60,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { isEn, t } from '../utils/i18nStore'
 
 const props = defineProps({
   tabs: {
@@ -84,6 +88,35 @@ let typingTimer = null
 const currentTab = computed(() => {
   return props.tabs[activeSubTabIdx.value] || null
 })
+
+// 英文模式下自動轉換專家版 4 大標籤頁名稱
+const EXPERT_TAB_LABELS_EN = [
+  '1. MoE & Dose-Response',
+  '2. Critical Effects',
+  '3. 10 KCCs Synthesis',
+  '4. Hazard Score & WoE'
+]
+
+const EXPERT_FULL_TITLES_EN = [
+  '1. Margin of Exposure (MoE) & Dose-Response Assessment',
+  '2. Critical Effects & Key Toxicological Endpoints',
+  '3. 10 Key Characteristics of Carcinogens (10 KCCs) Synthesis',
+  '4. Overall Hazard Score & Weight of Evidence (WoE) Conclusion'
+]
+
+const formatExpertTabLabel = (zhLabel, idx) => {
+  if (isEn.value && EXPERT_TAB_LABELS_EN[idx]) {
+    return EXPERT_TAB_LABELS_EN[idx]
+  }
+  return zhLabel
+}
+
+const formatExpertFullTitle = (zhTitle, idx) => {
+  if (isEn.value && EXPERT_FULL_TITLES_EN[idx]) {
+    return EXPERT_FULL_TITLES_EN[idx]
+  }
+  return zhTitle
+}
 
 const startTypewriter = (fullHtml) => {
   if (typingTimer) clearInterval(typingTimer)

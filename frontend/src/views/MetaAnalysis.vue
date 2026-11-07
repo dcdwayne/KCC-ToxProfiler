@@ -4,7 +4,7 @@
     <header class="meta-header">
       <div class="header-left">
         <h1 class="main-title">
-          證據權重危害辨識統合分析 <span class="title-en">Meta-analysis</span>
+          {{ isEn ? 'Weight of Evidence' : '證據權重危害辨識統合分析' }} <span class="title-en">Meta-analysis</span>
         </h1>
         <div class="target-info">
           <span class="label">ANALYSIS TARGET (CAS: {{ metaInfo.cas_number }})</span>
@@ -25,14 +25,14 @@
 
     <!-- 頁籤導覽列：民眾版本與專家版本各自獨立解鎖，並具備流光掃描與 ✨ READY 無到有彈跳特效 -->
     <nav class="tab-nav">
-      <button class="info-btn" title="點擊查看使用說明" @click="isGuideOpen = true">!</button>
+      <button class="info-btn" :title="t('點擊查看使用說明', 'Click to view user guide')" @click="isGuideOpen = true">!</button>
 
       <button 
         class="action-btn tab-btn" 
         :class="{ active: activeTab === 'Dashboard' }" 
         @click="switchTab('Dashboard')"
       >
-        分析成果儀表板
+        {{ t('分析成果儀表板', 'WoE Dashboard') }}
       </button>
 
       <!-- 民眾版本按鈕：先跑，完成後立即亮起並觸發 ✨ READY 特效 -->
@@ -45,11 +45,11 @@
         }" 
         :disabled="!hasPublicReport"
         @click="switchTab('Public')"
-        :title="hasPublicReport ? '點擊檢視民眾版科普風險報告' : 'AI 正在優先生成民眾版報告，完成後即可點擊'"
+        :title="hasPublicReport ? t('點擊檢視民眾版科普風險報告', 'Click to view Public Health Risk Summary') : t('AI 正在優先生成民眾版報告，完成後即可點擊', 'AI is generating the Public Summary first; available upon completion')"
       >
         <span v-if="justReadyPublic" class="just-ready-badge">✨ READY</span>
-        民眾版本
-        <span v-if="!hasPublicReport" class="generating-tag">⏳ 生成中...</span>
+        {{ t('民眾版本', 'Public Summary') }}
+        <span v-if="!hasPublicReport" class="generating-tag">{{ t('⏳ 生成中...', '⏳ Generating...') }}</span>
       </button>
 
       <!-- 專家版本按鈕：民眾版跑完後接著跑，完成後觸發 ✨ READY 特效 -->
@@ -63,12 +63,12 @@
         }" 
         :disabled="!hasExpertReport"
         @click="switchTab('Expert')"
-        :title="hasExpertReport ? '點擊檢視專家版法規毒理報告' : 'AI 正在背景生成專家版報告，完成後即可點擊'"
+        :title="hasExpertReport ? t('點擊檢視專家版法規毒理報告', 'Click to view Expert Regulatory Report') : t('AI 正在背景生成專家版報告，完成後即可點擊', 'AI is generating the Expert Report in the background; available upon completion')"
       >
         <span v-if="justReadyExpert" class="just-ready-badge">✨ READY</span>
-        專家版本
-        <span v-if="!hasExpertReport && hasPublicReport" class="generating-tag">⏳ 生成中...</span>
-        <span v-else-if="!hasExpertReport" class="generating-tag">(待生成...)</span>
+        {{ t('專家版本', 'Expert Report') }}
+        <span v-if="!hasExpertReport && hasPublicReport" class="generating-tag">{{ t('⏳ 生成中...', '⏳ Generating...') }}</span>
+        <span v-else-if="!hasExpertReport" class="generating-tag">{{ t('(待生成...)', '(Queued...)') }}</span>
       </button>
     </nav>
 
@@ -98,6 +98,7 @@
 <script setup>
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { isEn, t } from '../utils/i18nStore'
 import MetaPublic from '../components/MetaPublic.vue'
 import MetaExpert from '../components/MetaExpert.vue'
 import MetaDashboard from '../components/MetaDashboard.vue'

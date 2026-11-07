@@ -1,12 +1,12 @@
 <template>
   <div class="modal-overlay" @click.self="$emit('close')">
     <!-- 外層容器：固定寬度 820px + overflow: hidden 確保四個邊角皆圓潤 -->
-    <div class="modal-content">
+    <div class="modal-content" @click="pinnedChunkIdx = null">
       <!-- 內層滾動容器：僅允許垂直往下拉 (overflow-y: auto, overflow-x: hidden) -->
       <div class="modal-scroll-area">
         <!-- 載入中狀態 -->
         <div v-if="loading" class="loading-box">
-          正在載入文獻詳細資料與 KCC 命中片段...
+          {{ t('正在載入文獻詳細資料與 KCC 命中片段...', 'Loading paper details and matched KCC evidence...') }}
         </div>
 
         <template v-else-if="paperDetail">
@@ -16,7 +16,7 @@
               <span class="pub-type-badge">{{ paperDetail.pub_type }}</span>
               <span class="pub-date">{{ paperDetail.pub_date }}</span>
             </div>
-            <button class="close-btn" @click="$emit('close')" title="關閉視窗">✕</button>
+            <button class="close-btn" @click="$emit('close')" :title="t('關閉視窗', 'Close')">✕</button>
           </div>
 
           <!-- 論文完整標題 -->
@@ -37,20 +37,24 @@
           <!-- 分隔線 -->
           <hr class="divider" />
 
-          <!-- 資料標籤框 (加入適配度與期刊排名) -->
+          <!-- 資料標籤框 (加入適配度與期刊排名，且點擊 PMID 標籤亦可定住複製) -->
           <div class="meta-badges-row">
-            <span class="info-tag">文獻 PMID: {{ paperDetail.pmid }}</span>
-            <span class="info-tag">模型: {{ paperDetail.model }}</span>
-            <span class="info-tag">期刊排名: {{ paperDetail.quartile }}</span>
-            <span class="info-tag">引用次數: {{ paperDetail.citations }}</span>
-            <span class="info-tag highlight-tag">適配度: {{ paperDetail.rerank_pct }}%</span>
+            <span class="info-tag" :data-pmid="`PMID: ${paperDetail.pmid}`">
+              {{ t('文獻 PMID:', 'PMID:') }} {{ paperDetail.pmid }}
+            </span>
+            <span class="info-tag">{{ t('模型:', 'Model:') }} {{ paperDetail.model }}</span>
+            <span class="info-tag">{{ t('期刊排名:', 'Journal Rank:') }} {{ paperDetail.quartile }}</span>
+            <span class="info-tag">{{ t('引用次數:', 'Citations:') }} {{ paperDetail.citations }}</span>
+            <span class="info-tag highlight-tag">{{ t('適配度:', 'Rerank Score:') }} {{ paperDetail.rerank_pct }}%</span>
           </div>
 
-          <!-- 摘要區 (支援滑鼠 Hover 浮現對應的 KCC 關鍵片段，並自動校正邊界) -->
+          <!-- 摘要區 (支援滑鼠 Hover 浮現對應的 KCC 關鍵片段，點擊可固定視窗，並自動校正邊界) -->
           <div class="abstract-section">
             <div class="abstract-header">
               <h4 class="abstract-title">Abstract</h4>
-              <span class="hover-hint">💡 提示：將滑鼠移至標記底色的句子上，可檢視配對到的 KCC 關鍵片段</span>
+              <span class="hover-hint">
+                {{ t('💡 提示：將滑鼠移至標記底色的句子上可檢視 KCC 關鍵片段（點擊句子可固定視窗以複製文字）', '💡 Tip: Hover over highlighted sentences to view KCC evidence (Click to pin for copying)') }}
+              </span>
             </div>
 
             <div class="abstract-container">
@@ -58,17 +62,30 @@
                 v-for="chunk in paperDetail.chunks"
                 :key="chunk.chunk_index"
                 class="chunk-span"
-                :class="{ 'kcc-matched-highlight': chunk.matched_kccs && chunk.matched_kccs.length > 0 }"
+                :class="{
+                  'kcc-matched-highlight': chunk.matched_kccs && chunk.matched_kccs.length > 0,
+                  'is-chunk-pinned': pinnedChunkIdx === chunk.chunk_index
+                }"
                 @mouseenter="adjustTooltipPosition($event)"
+                @click.stop="togglePinChunk(chunk, $event)"
               >
                 {{ chunk.chunk_text }}{{ ' ' }}
 
-                <!-- 滑鼠 Hover 時浮現的 KCC 關鍵片段 Tooltip -->
+                <!-- 滑鼠 Hover 或點擊定住時浮現的 KCC 關鍵片段 Tooltip -->
                 <span
                   v-if="chunk.matched_kccs && chunk.matched_kccs.length > 0"
                   class="kcc-hover-tooltip"
+                  :class="{ 'tooltip-pinned': pinnedChunkIdx === chunk.chunk_index }"
+                  @click.stop
                 >
-                  <span class="tooltip-header">🎯 對應之 KCC 關鍵特徵片段</span>
+                  <span class="tooltip-header">
+                    <span>{{ t('🎯 對應之 KCC 關鍵特徵片段', '🎯 Matched KCC Characteristic Evidence') }}</span>
+                    <span class="pin-status-hint">
+                      {{ pinnedChunkIdx === chunk.chunk_index
+                        ? t('📌 已固定 (點擊空白處關閉)', '📌 Pinned (Click outside to close)')
+                        : t('💡 點擊句子可固定', '💡 Click to pin') }}
+                    </span>
+                  </span>
                   <span
                     v-for="(match, mIdx) in chunk.matched_kccs"
                     :key="mIdx"
@@ -76,7 +93,7 @@
                   >
                     <strong class="tooltip-code">
                       {{ match.kcc_code }}
-                      (適配度: {{ Math.round(match.rerank_score * 100) }}% | 餘弦相似度: {{ (match.cosine_score * 100).toFixed(1) }}%)
+                      ({{ t('適配度:', 'Rerank:') }} {{ Math.round(match.rerank_score * 100) }}% | {{ t('餘弦相似度:', 'Cosine:') }} {{ (match.cosine_score * 100).toFixed(1) }}%)
                     </strong>
                     <span class="tooltip-query">{{ match.query_text }}</span>
                   </span>
@@ -91,11 +108,30 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
+import { t } from '../utils/i18nStore'
+
 defineProps({
   paperDetail: Object,
   loading: Boolean
 })
 defineEmits(['close'])
+
+// 紀錄目前被使用者點擊定住 (Pin) 的 chunk_index
+const pinnedChunkIdx = ref(null)
+
+const togglePinChunk = (chunk, event) => {
+  if (!chunk.matched_kccs || chunk.matched_kccs.length === 0) {
+    pinnedChunkIdx.value = null
+    return
+  }
+  if (pinnedChunkIdx.value === chunk.chunk_index) {
+    pinnedChunkIdx.value = null
+  } else {
+    pinnedChunkIdx.value = chunk.chunk_index
+    adjustTooltipPosition(event)
+  }
+}
 
 /**
  * 動態校正 KCC 小視窗位置：
@@ -358,18 +394,23 @@ const adjustTooltipPosition = (event) => {
   font-weight: 500;
 }
 
-.kcc-matched-highlight:hover {
+.kcc-matched-highlight:hover,
+.kcc-matched-highlight.is-chunk-pinned {
   background-color: #ffe066;
 }
 
-/* 2. 滑鼠 Hover 時彈出的 KCC 關鍵片段視窗 (限制寬度並配合 JS 自動邊界校正) */
+.kcc-matched-highlight.is-chunk-pinned {
+  outline: 2px solid #e25740;
+}
+
+/* 2. 滑鼠 Hover 或點擊定住時彈出的 KCC 關鍵片段視窗 (限制寬度並配合 JS 自動邊界校正) */
 .kcc-hover-tooltip {
   visibility: hidden;
   opacity: 0;
   position: absolute;
   left: 0;
   bottom: calc(100% + 10px);
-  width: 400px;
+  width: 420px;
   max-width: 700px;
   box-sizing: border-box;
   background-color: #1a1e29;
@@ -389,18 +430,36 @@ const adjustTooltipPosition = (event) => {
   word-wrap: break-word;
 }
 
-.kcc-matched-highlight:hover .kcc-hover-tooltip {
+.kcc-matched-highlight:hover .kcc-hover-tooltip,
+.kcc-hover-tooltip.tooltip-pinned {
   visibility: visible;
   opacity: 1;
 }
 
+/* 當被點擊定住時，開啟滑鼠事件與文字選取，讓使用者可反白複製內部文字 */
+.kcc-hover-tooltip.tooltip-pinned {
+  pointer-events: auto;
+  border: 2px solid #f6d32d;
+  user-select: text;
+  cursor: text;
+}
+
 .tooltip-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   font-size: 12px;
   color: #ffd43b;
   font-weight: 800;
   letter-spacing: 0.5px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   padding-bottom: 6px;
+}
+
+.pin-status-hint {
+  font-size: 10.5px;
+  color: #94a3b8;
+  font-weight: 700;
 }
 
 .tooltip-item {

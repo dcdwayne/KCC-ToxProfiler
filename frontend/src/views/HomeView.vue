@@ -2,10 +2,14 @@
   <main class="home-view">
     <!-- 標題區 -->
     <header class="header-section">
-      <h2 class="main-title">毒理學文獻條件檢索與危害辨識評估系統</h2>
+      <h2 class="main-title">
+        {{ t('毒理學文獻條件檢索與危害辨識評估系統', 'Toxicological Literature Retrieval & Hazard Identification') }}
+      </h2>
       <div class="sub-title-banner">
-        <span class="step-pill">Intro</span>
-        <h3 class="sub-title">依據科學文獻資料，系統化致癌物之危害辨識評估流程</h3>
+        <span class="step-pill">STEP 01</span>
+        <h3 class="sub-title">
+          {{ t('依據科學文獻資料，系統化致癌物之危害辨識評估流程', 'Systematic Carcinogen Hazard Assessment Based on Scientific Evidence') }}
+        </h3>
       </div>
     </header>
 
@@ -13,16 +17,15 @@
     <section class="search-panel">
       <!-- 化學物質選擇 (單選，共五個) -->
       <div class="form-group">
-        <!-- 對齊 SystematicReview.vue 左側標題列設計 (! 按鈕 + 中英雙語上下標題) -->
         <div class="section-header-bar">
           <button 
             class="info-btn" 
-            title="點擊查看本頁使用說明"
+            :title="t('點擊查看本頁使用說明', 'Click to view user guide')"
             @click="isGuideOpen = true"
           >!</button>
           <div class="header-text-group">
-            <span class="header-zh">化學物質名稱</span>
-            <span class="header-en">TARGET CHEMICALS</span>
+            <span class="header-zh">{{ t('化學物質名稱', 'Target Chemicals') }}</span>
+            <span v-if="!isEn" class="header-en">TARGET CHEMICALS</span>
           </div>
         </div>
 
@@ -34,42 +37,41 @@
             :class="{ active: selectedChemical === chem }"
             @click="selectChemical(chem)"
           >
-            {{ chem }}
+            {{ translateChemical(chem) }}
           </button>
         </div>
       </div>
 
       <!-- 條件搜尋 -->
       <div class="condition-section">
-        <!-- 對齊 SystematicReview.vue 證據池的左側垂直飾條標題風格 -->
         <div class="pool-title-banner">
-          <span class="banner-zh">初步條件搜尋</span>
-          <span class="banner-en">PRELIMINARY FILTER</span>
+          <span class="banner-zh">{{ t('初步條件搜尋', 'Preliminary Filter') }}</span>
+          <span v-if="!isEn" class="banner-en">PRELIMINARY FILTER</span>
         </div>
         
         <div class="filter-box">
           <div class="form-row">
             <div class="row-label">
-              <span class="label-zh">出版年份</span>
+              <span class="label-zh">{{ t('出版年份', 'Publication Year') }}</span>
               <span class="label-en">Pub Year</span>
             </div>
             <div class="row-control">
-              <span class="ctrl-text">從</span>
+              <span class="ctrl-text">{{ t('從', 'From') }}</span>
               <input type="number" v-model.number="searchForm.startYear" placeholder="YYYY" class="year-input">
-              <span class="ctrl-text">至</span>
+              <span class="ctrl-text">{{ t('至', 'to') }}</span>
               <input type="number" v-model.number="searchForm.endYear" placeholder="YYYY" class="year-input">
-              <span class="ctrl-text">年</span>
+              <span v-if="!isEn" class="ctrl-text">年</span>
             </div>
           </div>
 
           <!-- 修正為單選：綁定 searchForm.minCitations -->
           <div class="form-row">
             <div class="row-label">
-              <span class="label-zh">引用次數</span>
-              <span class="label-en">Citation Count</span>
+              <span class="label-zh">{{ t('引用次數', 'Citation Count') }}</span>
+              <span class="label-en">Min Citations</span>
             </div>
             <div class="row-control">
-              <span class="ctrl-text">被引用至少</span>
+              <span class="ctrl-text">{{ t('被引用至少', 'Cited at least') }}</span>
               <button 
                 v-for="cite in [1, 3, 10, 20]" 
                 :key="cite"
@@ -79,14 +81,14 @@
               >
                 {{ cite }}
               </button>
-              <span class="ctrl-text">次以上</span>
+              <span class="ctrl-text">{{ t('次以上', 'times') }}</span>
             </div>
           </div>
 
           <div class="form-row">
             <div class="row-label">
-              <span class="label-zh">文獻類型</span>
-              <span class="label-en">Document Type</span>
+              <span class="label-zh">{{ t('文獻類型', 'Document Type') }}</span>
+              <span class="label-en">Doc Type</span>
             </div>
             <div class="row-control radio-group">
               <label class="radio-label" :class="{ selected: searchForm.docType === 'Original Research' }">
@@ -107,8 +109,8 @@
           <!-- 期刊排名：支援多選與 All 切換 -->
           <div class="form-row">
             <div class="row-label">
-              <span class="label-zh">期刊排名</span>
-              <span class="label-en">Journal Rank</span>
+              <span class="label-zh">{{ t('期刊排名', 'Journal Rank') }}</span>
+              <span class="label-en">SJR Quartile</span>
             </div>
             <div class="row-control">
               <div class="chip-container inline">
@@ -130,13 +132,18 @@
       <!-- 初步篩選成果區 -->
       <div class="preview-section">
         <button class="action-btn preview" :disabled="isLoadingPreview" @click="checkPreviewCount">
-          {{ isLoadingPreview ? '檢索計算中...' : '初步篩選成果' }}
+          {{ isLoadingPreview ? t('檢索計算中...', 'Calculating...') : t('初步篩選成果', 'Preview Filter Count') }}
         </button>
         
         <div class="result-box" :class="{ 'has-data': previewCount !== null }">
-          <span v-if="previewCount === null">點擊上方按鈕預估符合條件之文獻數量</span>
-          <span v-else>
+          <span v-if="previewCount === null">
+            {{ t('點擊上方按鈕預估符合條件之文獻數量', 'Click the button above to estimate matching papers') }}
+          </span>
+          <span v-else-if="!isEn">
             目前條件共篩選出 <strong class="count-highlight">{{ previewCount }}</strong> 篇相關文獻
+          </span>
+          <span v-else>
+            Found <strong class="count-highlight">{{ previewCount }}</strong> matching papers under current criteria
           </span>
         </div>
       </div>
@@ -149,7 +156,7 @@
         :disabled="isSubmitting" 
         @click="submitFilter"
       >
-        {{ isSubmitting ? '正在啟動證據池檢索...' : '確定送出篩選' }}
+        {{ isSubmitting ? t('正在啟動證據池檢索...', 'Launching Evidence Retrieval...') : t('確定送出篩選', 'Confirm & Submit Filter') }}
       </button>
     </div>
 
@@ -166,6 +173,7 @@
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import InfoGuideModal from '../components/InfoGuideModal.vue'
+import { isEn, t, translateChemical } from '../utils/i18nStore'
 
 const router = useRouter()
 
@@ -205,7 +213,6 @@ const toggleRank = (rank) => {
     searchForm.journalRanks = ['All']
     return
   }
-  // 若原本有選 All，先移除 All
   const allIdx = searchForm.journalRanks.indexOf('All')
   if (allIdx > -1) {
     searchForm.journalRanks.splice(allIdx, 1)
@@ -235,22 +242,27 @@ const checkPreviewCount = async () => {
     })
 
     const res = await fetch(`${API_BASE_URL}/search/preview?${params.toString()}`)
-    if (!res.ok) throw new Error('預覽請求失敗')
+    if (!res.ok) throw new Error('Preview request failed')
     const data = await res.json()
     previewCount.value = data.count
   } catch (err) {
     console.error('初步篩選失敗:', err)
-    alert('無法取得篩選數量，請確認後端 FastAPI (Port 8000) 是否已啟動！')
+    alert(t(
+      '無法取得篩選數量，請確認後端 FastAPI (Port 8000) 是否已啟動！',
+      'Failed to fetch preview count. Please check if the backend server is running!'
+    ))
   } finally {
     isLoadingPreview.value = false
   }
 }
 
 // API 2: 點擊『確定送出篩選』(PUT /api/search/submit)
-// 更新 papers.is_selected -> 背景啟動 Chunking & Embedding 與 10 KCC 召回重排 -> 立即跳轉至 SystematicReview.vue
 const submitFilter = async () => {
   if (previewCount.value === 0) {
-    alert('目前篩選條件下共有 0 篇文獻，請放寬篩選條件後再送出！')
+    alert(t(
+      '目前篩選條件下共有 0 篇文獻，請放寬篩選條件後再送出！',
+      '0 papers matched current criteria. Please broaden your filter conditions before submitting!'
+    ))
     return
   }
 
@@ -273,7 +285,7 @@ const submitFilter = async () => {
 
     if (!res.ok) {
       const errData = await res.json()
-      throw new Error(errData.detail || '送出篩選處理失敗')
+      throw new Error(errData.detail || t('送出篩選處理失敗', 'Failed to submit filter'))
     }
 
     const data = await res.json()
@@ -282,7 +294,7 @@ const submitFilter = async () => {
     router.push({ path: '/review', query: { eval_id: data.evaluation_id } })
   } catch (err) {
     console.error('送出篩選失敗:', err)
-    alert(`處理失敗：${err.message}`)
+    alert(`${t('處理失敗：', 'Error: ')}${err.message}`)
   } finally {
     isSubmitting.value = false
   }
@@ -434,7 +446,7 @@ const submitFilter = async () => {
   background-color: #ffffff;
   color: #4a5568;
   border: 1.5px solid #cbd5e1;
-  padding: 10px 16px;
+  padding: 10px 12px;
   border-radius: 10px;
   font-size: 15.5px;
   cursor: pointer;
@@ -623,7 +635,7 @@ input[type="number"].year-input:focus {
 
 .result-box {
   width: 100%;
-  max-width: 460px;
+  max-width: 480px;
   min-height: 52px;
   background-color: #f8f9fa;
   border: 1.5px dashed #cbd5e1;
@@ -635,6 +647,8 @@ input[type="number"].year-input:focus {
   font-size: 15px;
   transition: all 0.3s ease;
   font-weight: 800;
+  padding: 0 16px;
+  text-align: center;
 }
 
 .result-box.has-data {

@@ -3,12 +3,14 @@
     <!-- 點擊左側 Logo 或標題：若為管理員/專家回首頁，若為會員/訪客則回 Dr. Manhattan -->
     <div class="nav-left" @click="goHome">
       <img src="/dr-manhattan-logo.png" alt="Logo" class="logo-img" />
-      <h1 class="product-title">KCC ToxProfiler 致癌物關鍵特徵歸納平臺</h1>
+      <h1 class="product-title">
+        {{ t('KCC ToxProfiler 致癌物關鍵特徵歸納平臺', 'KCC ToxProfiler Carcinogen Hazard Platform') }}
+      </h1>
     </div>
     
-    <!-- 右側導覽列：依據 RBAC 四角色動態呈現 -->
+    <!-- 右側導覽列：依據 RBAC 四角色與當前語言動態呈現 -->
     <div class="nav-right">
-      <!-- 1. 頁面跳轉群組 (風格完全統一) -->
+      <!-- 1. 頁面跳轉群組 -->
       <div class="nav-page-group">
         <!-- 僅『系統管理者』與『專家』開放：危害辨識 & 歷史紀錄 -->
         <button 
@@ -17,7 +19,7 @@
           :class="{ active: isHazardFlowActive }"
           @click="router.push('/')"
         >
-          危害辨識
+          {{ t('危害辨識', 'Hazard ID') }}
         </button>
 
         <button 
@@ -26,7 +28,7 @@
           :class="{ active: route.path.startsWith('/history') }"
           @click="router.push('/history')"
         >
-          歷史紀錄
+          {{ t('歷史紀錄', 'History') }}
         </button>
 
         <!-- 四種角色皆開放：Dr. Manhattan 智能助理 -->
@@ -38,14 +40,14 @@
           Dr. Manhattan
         </button>
 
-        <!-- 僅『系統管理者』開放：帳號管理 (權限核准 + 登入紀錄 Log) -->
+        <!-- 僅『系統管理者』開放：帳號管理 -->
         <button 
           v-if="isAdmin"
           class="nav-page-btn" 
           :class="{ active: route.path.startsWith('/account') }"
           @click="router.push('/account')"
         >
-          帳號管理
+          {{ t('帳號管理', 'Accounts') }}
         </button>
       </div>
 
@@ -56,7 +58,7 @@
       <div class="nav-utility-group">
         <!-- 顯示當前登入者名稱與角色 -->
         <span v-if="authState.user" class="role-status-pill" :class="getRoleBadgeClass(authState.user.role)">
-          {{ authState.user.name }} ({{ authState.user.role }})
+          {{ displayUserName }} ({{ translateRole(authState.user.role) }})
         </span>
 
         <button 
@@ -64,24 +66,25 @@
           class="login-nav-btn" 
           @click="openAuthModal('login')"
         >
-          登入
+          {{ t('登入', 'Sign In') }}
         </button>
         <button 
           v-else 
           class="login-nav-btn logout-mode" 
           @click="handleLogout"
-          title="點擊登出系統"
+          :title="t('點擊登出系統', 'Click to sign out')"
         >
-          登出
+          {{ t('登出', 'Sign Out') }}
         </button>
 
+        <!-- 中英雙語切換按鈕：中文介面時顯示 EN，英文介面時顯示 中文 -->
         <button 
           class="lang-toggle" 
-          :class="{ active: currentLang === 'EN' }"
+          :class="{ active: isEn }"
           @click="toggleLang"
-          title="切換語言 / Switch Language"
+          :title="t('Switch to English', '切換為繁體中文')"
         >
-          {{ currentLang }}
+          {{ isEn ? '中文' : 'EN' }}
         </button>
       </div>
     </div>
@@ -92,14 +95,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import AuthModal from './AuthModal.vue'
 import { authState, fetchCurrentUser, openAuthModal } from '../utils/authStore'
+import { isEn, toggleLang, t, translateRole } from '../utils/i18nStore'
 
 const router = useRouter()
 const route = useRoute()
-const currentLang = ref('EN')
 
 const API_BASE_URL = window.location.port === '5173'
   ? `http://${window.location.hostname}:8000/api`
@@ -110,6 +113,15 @@ const currentRole = computed(() => authState.user?.role || '訪客')
 const isAdmin = computed(() => currentRole.value === '系統管理者')
 const canAccessHazardAndHistory = computed(() => {
   return currentRole.value === '系統管理者' || currentRole.value === '專家'
+})
+
+const displayUserName = computed(() => {
+  const rawName = authState.user?.name || ''
+  if (isEn.value) {
+    if (rawName === '訪客') return 'Guest'
+    if (rawName === '系統最高管理員') return 'System Admin'
+  }
+  return rawName
 })
 
 const isHazardFlowActive = computed(() => {
@@ -135,7 +147,7 @@ const handleLogout = async () => {
     authState.isGuest = false
     authState.user = null
     router.push('/chat')
-    openAuthModal('login', '您已成功登出系統。')
+    openAuthModal('login', t('您已成功登出系統。', 'You have successfully signed out.'))
   }
 }
 
@@ -144,10 +156,6 @@ const getRoleBadgeClass = (role) => {
   if (role === '專家') return 'pill-expert'
   if (role === '會員') return 'pill-member'
   return 'pill-guest'
-}
-
-const toggleLang = () => {
-  currentLang.value = currentLang.value === 'EN' ? '中文' : 'EN'
 }
 
 onMounted(() => {
@@ -200,7 +208,6 @@ onMounted(() => {
   user-select: none;
 }
 
-/* 導覽頁籤群組 (風格完全一致) */
 .nav-page-group {
   display: flex;
   align-items: center;
@@ -247,7 +254,6 @@ onMounted(() => {
   gap: 10px;
 }
 
-/* 當前角色身分膠囊 */
 .role-status-pill {
   font-size: 12.5px;
   font-weight: 800;
@@ -313,7 +319,7 @@ onMounted(() => {
   font-weight: 800;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 58px;
+  min-width: 62px;
   text-align: center;
 }
 
