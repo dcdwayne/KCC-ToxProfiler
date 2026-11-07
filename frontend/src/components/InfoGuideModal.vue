@@ -195,19 +195,44 @@
             </div>
           </template>
 
+          <!-- ================= 5. 帳號與權限管理 (AccountManageView) 最新說明內容 ================= -->
           <template v-else-if="page === 'account'">
             <div class="step-card">
               <div class="step-badge">功能 1</div>
               <div class="step-content">
-                <h4>權限核准與角色指派 (RBAC 動態授權)</h4>
-                <p>新申請之帳號預設為「待審核 (Pending)」並自動置頂顯示。點擊右側「✓ 通過」或「✕ 未通過」即可完成審核並自動記錄台灣時區之<strong>核定時間</strong>；您亦可直接透過下拉選單調整其權限角色（系統管理者／專家／會員）或切換帳號啟停狀態。</p>
+                <h4>申請人詳細基本資料檢視（點擊姓名彈出視窗）</h4>
+                <p>表格「基本帳號資料」欄僅精簡呈現<strong>「申請人姓名」</strong>以保持版面清晰。<strong>點擊任一申請人之姓名按鈕</strong>，即可彈出詳細資料視窗，完整查閱其電子信箱、服務單位、職稱、聯絡電話、註冊時間與審核核定時間。</p>
               </div>
             </div>
+
             <div class="step-card">
               <div class="step-badge">功能 2</div>
               <div class="step-content">
-                <h4>使用者登入紀錄與時間區間查詢 (Audit Logs)</h4>
-                <p>切換至「使用者登入紀錄」頁籤，可設定<strong>開始日期至結束日期</strong>（或點擊今日、近 7 天、近 30 天快速篩選），完整追蹤所有成功登入、訪客進入與異常攔截（密碼錯誤、待審核攔截、停權攔截）之來源 IP 與時間紀錄。</p>
+                <h4>今日 AI 額度即時監控與一鍵重置 (Quota Tracking)</h4>
+                <ul class="guide-list">
+                  <li><strong>分級額度管理</strong>：<span class="badge-demo status-q1">系統管理者 / 專家</span> 享有 <strong>∞ 無上限</strong> 提問權限；一般 <strong>會員</strong> 預設享有每日 <strong>10 次提問</strong> 或 <strong>50,000 Tokens</strong> 額度。</li>
+                  <li><strong>高水位預警與一鍵重置</strong>：當會員使用量達 80% 時進度條將轉為橘黃色預警、達 100% 轉為紅底鎖定。管理員可點擊該欄位的 <strong><code>↺ 重置</code></strong> 按鈕，立即將該名會員今日已消耗之次數與 Token 歸零。</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="step-card">
+              <div class="step-badge">功能 3</div>
+              <div class="step-content">
+                <h4>權限核准、RBAC 角色指派與安全刪除無用帳號</h4>
+                <ul class="guide-list">
+                  <li><strong>審核與核定時間</strong>：新申請帳號預設為 <span class="badge-demo invivo">待審核 (Pending)</span> 並自動置頂。點擊右側 <strong>「✓ 通過」</strong> 或 <strong>「✕ 未通過」</strong> 即完成審核並自動寫入台灣時區之<strong>核定時間</strong>。</li>
+                  <li><strong>動態調整角色與啟停</strong>：可隨時透過下拉選單切換角色（系統管理者／專家／會員），或點擊「啟用中／已停用」立即收回或恢復存取權限。</li>
+                  <li><strong>安全刪除確認</strong>：針對測試或無用之申請人紀錄，點擊最右側 <strong><code>X</code></strong> 將彈出安全警告視窗，確認後永久移除該筆帳號與額度資料（過往登入稽核軌跡仍予保留）。</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="step-card">
+              <div class="step-badge">功能 4</div>
+              <div class="step-content">
+                <h4>使用者登入稽核紀錄與時間區間查詢 (Audit Logs)</h4>
+                <p>切換至上方<strong>「使用者登入紀錄」</strong>分頁，可設定台灣時區之<strong>開始日期至結束日期</strong>（或點擊「今日」、「近 7 天」、「近 30 天」快捷鍵），搭配關鍵字與結果過濾，完整追蹤所有成功登入、訪客進入與異常攔截（密碼錯誤、待審核攔截、停權攔截）之來源 IP 與時間。</p>
               </div>
             </div>
           </template>
@@ -260,9 +285,9 @@ const GUIDE_META = {
     intro: '本頁面集中管理所有化學物質之歷史危害辨識評估檔案，支援多維度組合排序與成果回溯，並提供勾選綁定功能，作為「Dr. Manhattan」AI 助手（FastMCP）回答問題時之唯一實證資料來源。'
   },
   account: {
-  subtitle: 'STEP 5 : ACCOUNT APPROVAL & LOGIN AUDIT LOGS',
-  title: '帳號權限核准與登入稽核紀錄使用說明',
-  intro: '本頁面專供「系統管理者」審核新註冊帳號之權限申請、動態調整 RBAC 四級角色與啟停狀態，並提供支援時間區間查詢之使用者登入稽核紀錄 (Audit Logs)。'
+    subtitle: 'STEP 5 : ACCOUNT APPROVAL, QUOTA & AUDIT LOGS',
+    title: '帳號與權限管理（核准、額度監控與登入稽核）使用說明',
+    intro: '本頁面專供「系統管理者」檢視申請人詳細資料、核准或刪除帳號、動態指派 RBAC 四級角色、監控與重置每日 AI Token 額度，並提供支援時間區間查詢之使用者登入稽核紀錄。'
   }
 }
 

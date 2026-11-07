@@ -1,12 +1,15 @@
 <script setup>
 import NavBar from './components/Nav.vue'
+import GlobalPinTooltip from './components/GlobalPinTooltip.vue'
 </script>
 
 <template>
   <div class="app-container">
     <NavBar />
     <!-- 這裡會根據網址自動替換成 HomeView, SystematicReview 或 MetaAnalysis -->
-    <router-view></router-view>
+    <router-view />
+    <!-- 全站通用：Hover 預覽 + 點擊定住複製 PMID / 匹配片段視窗 -->
+    <GlobalPinTooltip />
   </div>
 </template>
 
@@ -31,5 +34,20 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+/* 停用舊版無法選取複製的 ::after 偽元素，統一交由 GlobalPinTooltip 處理 Hover 與點擊定住 */
+.apa-citation::after,
+.highlight-sentence::after,
+.matched-sentence::after {
+  display: none !important;
+  content: none !important;
+}
+
+/* 當某個引用或黃色匹配片段被點擊定住時的高亮外框提示 */
+.pinned-highlight-active {
+  outline: 2px solid #e25740 !important;
+  box-shadow: 0 0 0 3px rgba(246, 211, 45, 0.5) !important;
+  border-radius: 4px;
 }
 </style>

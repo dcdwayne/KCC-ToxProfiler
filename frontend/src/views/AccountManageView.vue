@@ -51,11 +51,11 @@
         <div class="filter-grid">
           <!-- 關鍵字搜尋 -->
           <div class="filter-item">
-            <label>關鍵字查詢（信箱 / 姓名 / 單位）</label>
+            <label>關鍵字查詢（姓名 / 信箱 / 單位）</label>
             <input
               type="text"
               v-model.trim="approvalFilters.keyword"
-              placeholder="輸入信箱、姓名或單位名稱..."
+              placeholder="輸入申請人姓名、信箱或單位..."
               class="text-input"
               @keyup.enter="fetchUsers"
             />
@@ -104,26 +104,26 @@
           </span>
         </div>
         <div class="summary-right">
-          <span class="legend-hint">⚡ 今日額度統計日期：{{ quotaDateTw || '今日' }}（每日 00:00 自動重置）</span>
+          <span class="legend-hint">💡 點擊「申請人姓名」可檢視完整基本資料 ｜ 今日額度統計：{{ quotaDateTw || '今日' }}</span>
         </div>
       </div>
 
-      <!-- 帳號核准表格 -->
+      <!-- 帳號核准表格 (重新調配各欄舒適寬度，防止換行擠壓) -->
       <div v-if="isLoadingUsers" class="empty-box">正在載入帳號與權限核准資料...</div>
 
       <div v-else-if="paginatedUsers.length > 0" class="table-wrapper">
         <table class="tox-table">
           <thead>
             <tr>
-              <th style="width: 44px;">#</th>
-              <th style="min-width: 210px;">基本帳號資料 (信箱 / 姓名 / 單位職稱 / 電話)</th>
-              <th style="width: 100px; text-align: center;">帳號狀態</th>
+              <th style="width: 44px; text-align: center;">#</th>
+              <th style="min-width: 225px;">基本帳號資料 (姓名)</th>
+              <th style="width: 96px; text-align: center;">帳號狀態</th>
               <th style="width: 78px; text-align: center;">登入次數</th>
-              <th style="width: 195px; text-align: center;">今日 AI 額度 (次數 / Tokens)</th>
-              <th style="width: 125px; text-align: center;">權限角色</th>
-              <th style="width: 145px; text-align: center;">確認狀態</th>
-              <th style="width: 145px; text-align: center;">核定時間 (台灣)</th>
-              <th style="width: 165px; text-align: center;">審核操作</th>
+              <th style="width: 185px; text-align: center;">今日 AI 額度 (次數 / Tokens)</th>
+              <th style="width: 120px; text-align: center;">權限角色</th>
+              <th style="width: 125px; text-align: center;">確認狀態</th>
+              <th style="width: 160px; text-align: center;">核定時間 (台灣)</th>
+              <th style="width: 185px; text-align: center;">審核操作 / 刪除</th>
             </tr>
           </thead>
           <tbody>
@@ -133,23 +133,24 @@
               :class="{ 'pending-row': u.approval_status === 'PENDING' }"
             >
               <!-- 1. 序號 -->
-              <td class="cell-index">
+              <td class="text-center cell-index">
                 {{ (approvalPage - 1) * APPROVAL_ITEMS_PER_PAGE + idx + 1 }}.
               </td>
 
-              <!-- 2. 基本帳號資料 -->
+              <!-- 2. 基本帳號資料：單行不換行顯示『申請人姓名』與『當前登入』標籤 -->
               <td>
-                <div class="user-main-info">
-                  <span class="user-email">{{ u.email }}</span>
+                <div class="name-cell-wrap">
+                  <button
+                    type="button"
+                    class="applicant-name-btn"
+                    @click="openUserDetailModal(u)"
+                    title="點擊檢視此申請人之詳細基本帳號資料"
+                  >
+                    <span class="name-avatar-dot">👤</span>
+                    <span class="name-text">{{ getDisplayName(u) }}</span>
+                  </button>
                   <span v-if="u.is_self" class="self-tag">當前登入</span>
                 </div>
-                <div class="user-sub-info">
-                  <span>👤 姓名：<strong>{{ u.name }}</strong></span>
-                  <span>🏢 單位：{{ u.organization }}</span>
-                  <span>💼 職稱：{{ u.job_title }}</span>
-                  <span>📞 電話：{{ u.phone }}</span>
-                </div>
-                <div class="user-reg-time">申請時間：{{ u.created_at_tw }}</div>
               </td>
 
               <!-- 3. 帳號狀態 -->
@@ -236,7 +237,7 @@
                 </span>
               </td>
 
-              <!-- 8. 核定時間 -->
+              <!-- 8. 核定時間 (單行不換行) -->
               <td class="text-center time-cell">
                 <span v-if="u.approved_at_tw" class="approved-time-text">
                   {{ u.approved_at_tw }}
@@ -244,7 +245,7 @@
                 <span v-else class="unapproved-dash">-- (待審核)</span>
               </td>
 
-              <!-- 9. 審核操作按鈕 -->
+              <!-- 9. 審核操作按鈕 + 刪除申請人按鈕 -->
               <td class="text-center">
                 <div class="audit-btn-group">
                   <button
@@ -264,6 +265,14 @@
                     title="駁回此帳號申請"
                   >
                     ✕ 未通過
+                  </button>
+                  <button
+                    class="delete-user-btn"
+                    :disabled="u.is_self || updatingUserId === u.id"
+                    @click="openDeleteUserModal(u)"
+                    :title="u.is_self ? '無法刪除自己目前登入的管理員帳號' : '刪除此筆申請人帳號資料'"
+                  >
+                    X
                   </button>
                 </div>
               </td>
@@ -385,10 +394,10 @@
         <table class="tox-table">
           <thead>
             <tr>
-              <th style="width: 56px;">#</th>
+              <th style="width: 56px; text-align: center;">#</th>
               <th style="width: 185px;">登入時間 (台灣時區)</th>
               <th>登入帳號 (Email)</th>
-              <th style="width: 140px;">使用者姓名</th>
+              <th style="width: 150px;">使用者姓名</th>
               <th style="width: 130px; text-align: center;">權限角色</th>
               <th style="width: 150px; text-align: center;">來源 IP 位址</th>
               <th style="width: 195px; text-align: center;">登入驗證結果</th>
@@ -396,7 +405,7 @@
           </thead>
           <tbody>
             <tr v-for="(lg, idx) in paginatedLogs" :key="lg.id">
-              <td class="cell-index">
+              <td class="text-center cell-index">
                 {{ (logPage - 1) * LOG_ITEMS_PER_PAGE + idx + 1 }}.
               </td>
               <td class="time-cell">
@@ -448,6 +457,136 @@
       </div>
     </section>
 
+    <!-- ================= 彈出視窗 1：點擊姓名查看「詳細基本帳號資料」 ================= -->
+    <transition name="modal-fade">
+      <div v-if="isDetailModalOpen && selectedUser" class="modal-overlay" @click.self="closeUserDetailModal">
+        <div class="detail-modal">
+          <header class="detail-header">
+            <div class="header-title-group">
+              <span class="detail-icon">👤</span>
+              <div>
+                <span class="detail-subtitle">APPLICANT PROFILE / 基本帳號詳細資料</span>
+                <h3 class="detail-title">{{ getDisplayName(selectedUser) }} 的帳號資訊</h3>
+              </div>
+            </div>
+            <button class="close-btn" @click="closeUserDetailModal" title="關閉視窗">✕</button>
+          </header>
+
+          <div class="detail-body">
+            <div class="profile-grid">
+              <div class="profile-item full-row">
+                <span class="p-label">📧 申請帳號（電子信箱 Email）</span>
+                <strong class="p-value email-highlight">{{ selectedUser.email }}</strong>
+              </div>
+
+              <div class="profile-item">
+                <span class="p-label">👤 申請人姓名（Name）</span>
+                <strong class="p-value">{{ getDisplayName(selectedUser) }}</strong>
+              </div>
+
+              <div class="profile-item">
+                <span class="p-label">📞 聯絡電話（Phone）</span>
+                <span class="p-value">{{ selectedUser.phone && selectedUser.phone !== '--' ? selectedUser.phone : '未填寫' }}</span>
+              </div>
+
+              <div class="profile-item">
+                <span class="p-label">🏢 服務單位（Organization）</span>
+                <span class="p-value">{{ selectedUser.organization && selectedUser.organization !== '--' ? selectedUser.organization : '未填寫' }}</span>
+              </div>
+
+              <div class="profile-item">
+                <span class="p-label">💼 職稱（Job Title）</span>
+                <span class="p-value">{{ selectedUser.job_title && selectedUser.job_title !== '--' ? selectedUser.job_title : '未填寫' }}</span>
+              </div>
+
+              <div class="profile-item">
+                <span class="p-label">🛡️ 權限角色（Role）</span>
+                <span class="p-value">
+                  <span class="role-pill" :class="getRoleSelectClass(selectedUser.role)">{{ selectedUser.role }}</span>
+                </span>
+              </div>
+
+              <div class="profile-item">
+                <span class="p-label">📋 確認狀態（Approval）</span>
+                <span class="p-value">
+                  <span class="approval-badge" :class="getApprovalBadgeClass(selectedUser.approval_status)">
+                    {{ formatApprovalLabel(selectedUser.approval_status) }}
+                  </span>
+                </span>
+              </div>
+
+              <div class="profile-item">
+                <span class="p-label">🕒 註冊申請時間（台灣時區）</span>
+                <span class="p-value">{{ selectedUser.created_at_tw }}</span>
+              </div>
+
+              <div class="profile-item">
+                <span class="p-label">✅ 審核核定時間（台灣時區）</span>
+                <span class="p-value">{{ selectedUser.approved_at_tw || '尚在待審核階段' }}</span>
+              </div>
+            </div>
+          </div>
+
+          <footer class="detail-footer">
+            <button class="got-it-btn" @click="closeUserDetailModal">關閉視窗</button>
+          </footer>
+        </div>
+      </div>
+    </transition>
+
+    <!-- ================= 彈出視窗 2：刪除申請人帳號確認警告視窗 ================= -->
+    <transition name="modal-fade">
+      <div v-if="isDeleteModalOpen && userToDelete" class="modal-overlay" @click.self="closeDeleteUserModal">
+        <div class="warn-modal">
+          <header class="warn-header">
+            <div class="header-title-group">
+              <span class="warn-icon">!</span>
+              <div>
+                <span class="warn-subtitle">ACCOUNT DELETION WARNING / 刪除帳號確認</span>
+                <h3 class="warn-title">確定要永久刪除此申請人帳號嗎？</h3>
+              </div>
+            </div>
+            <button class="close-btn" @click="closeDeleteUserModal" title="取消並關閉">✕</button>
+          </header>
+
+          <div class="warn-body">
+            <div class="target-summary-card">
+              <div class="summary-item">
+                <span class="s-label">申請人姓名：</span>
+                <strong class="s-value">{{ getDisplayName(userToDelete) }} (User #{{ userToDelete.id }})</strong>
+              </div>
+              <div class="summary-item">
+                <span class="s-label">帳號信箱與角色：</span>
+                <span class="s-value">{{ userToDelete.email }} ｜ {{ userToDelete.role }} ({{ formatApprovalLabel(userToDelete.approval_status) }})</span>
+              </div>
+            </div>
+
+            <p class="consequence-lead">執行刪除將會連帶執行以下操作，且<strong>無法復原</strong>：</p>
+            <ul class="consequence-list">
+              <li>
+                <strong>永久移除申請人帳號 (<code>users</code> 資料表)</strong>：該帳號將從系統中徹底移除，無法再登入平臺。
+              </li>
+              <li>
+                <strong>清除每日 AI 額度紀錄 (<code>user_daily_quotas</code> 資料表)</strong>：同步清除該帳號關聯之 Token 額度統計資料。
+              </li>
+              <li>
+                <strong>保留歷史安全稽核軌跡 (<code>user_login_logs</code> 資料表)</strong>：過往的登入成功或失敗紀錄仍會保留於登入稽核表中，以利資安追蹤。
+              </li>
+            </ul>
+          </div>
+
+          <footer class="warn-footer">
+            <button class="cancel-btn" :disabled="isDeletingUser" @click="closeDeleteUserModal">
+              取消保留
+            </button>
+            <button class="confirm-delete-btn" :disabled="isDeletingUser" @click="confirmDeleteUser">
+              {{ isDeletingUser ? '正在刪除帳號...' : '確認永久刪除' }}
+            </button>
+          </footer>
+        </div>
+      </div>
+    </transition>
+
     <!-- 使用說明彈出視窗 -->
     <InfoGuideModal :isOpen="isGuideOpen" page="account" @close="isGuideOpen = false" />
   </main>
@@ -487,6 +626,15 @@ const approvalFilters = reactive({
   account_status: 'ALL'
 })
 
+// 申請人詳細基本資料彈窗狀態
+const isDetailModalOpen = ref(false)
+const selectedUser = ref(null)
+
+// 刪除申請人確認警告彈窗狀態
+const isDeleteModalOpen = ref(false)
+const userToDelete = ref(null)
+const isDeletingUser = ref(false)
+
 // --- 子頁面 2：使用者登入紀錄狀態 ---
 const logList = ref([])
 const isLoadingLogs = ref(false)
@@ -500,7 +648,59 @@ const logFilters = reactive({
   login_result: 'ALL'
 })
 
-// --- 分頁計算邏輯：權限核准 ---
+const getDisplayName = (u) => {
+  if (u.name && u.name !== '--') return u.name
+  return u.email ? u.email.split('@')[0] : '未命名'
+}
+
+const openUserDetailModal = (user) => {
+  selectedUser.value = user
+  isDetailModalOpen.value = true
+}
+
+const closeUserDetailModal = () => {
+  isDetailModalOpen.value = false
+  selectedUser.value = null
+}
+
+const openDeleteUserModal = (user) => {
+  userToDelete.value = user
+  isDeleteModalOpen.value = true
+}
+
+const closeDeleteUserModal = () => {
+  if (isDeletingUser.value) return
+  isDeleteModalOpen.value = false
+  userToDelete.value = null
+}
+
+const confirmDeleteUser = async () => {
+  if (!userToDelete.value) return
+  isDeletingUser.value = true
+  const targetId = userToDelete.value.id
+
+  try {
+    const res = await fetch(`${API_BASE_URL}/admin/users/${targetId}`, {
+      method: 'DELETE',
+      credentials: 'include'
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.detail || '刪除帳號失敗')
+
+    userList.value = userList.value.filter(u => u.id !== targetId)
+    if (paginatedUsers.value.length === 0 && approvalPage.value > 1) {
+      approvalPage.value--
+    }
+    isDeleteModalOpen.value = false
+    userToDelete.value = null
+    await fetchUsers()
+  } catch (err) {
+    alert(err.message)
+  } finally {
+    isDeletingUser.value = false
+  }
+}
+
 const approvalTotalPages = computed(() => {
   return Math.max(1, Math.ceil(userList.value.length / APPROVAL_ITEMS_PER_PAGE))
 })
@@ -802,7 +1002,7 @@ onMounted(() => {
 
 <style scoped>
 .account-page {
-  max-width: 1260px;
+  max-width: 1280px;
   margin: 20px auto 40px auto;
   padding: 0 20px;
 }
@@ -813,9 +1013,9 @@ onMounted(() => {
 
 .main-title {
   color: white;
-  font-size: 36px;
-  margin-top: 0px;
-  margin-bottom: 0px;
+  font-size: 38px;
+  margin-top: 4px;
+  margin-bottom: 16px;
   font-weight: 900;
   letter-spacing: 1.5px;
   text-shadow: 
@@ -952,9 +1152,7 @@ onMounted(() => {
   transition: all 0.2s;
 }
 
-.btn-outline:hover {
-  background-color: var(--light-color);
-}
+.btn-outline:hover { background-color: var(--light-color); }
 
 .btn-solid {
   background-color: #1b1e29;
@@ -1029,23 +1227,9 @@ onMounted(() => {
   margin-bottom: 14px;
 }
 
-.range-label {
-  font-size: 14px;
-  font-weight: 800;
-  color: #1b1e29;
-}
-
-.range-sub {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #475569;
-}
-
-.quick-date-btns {
-  display: flex;
-  gap: 8px;
-  margin-left: auto;
-}
+.range-label { font-size: 14px; font-weight: 800; color: #1b1e29; }
+.range-sub { font-size: 13.5px; font-weight: 700; color: #475569; }
+.quick-date-btns { display: flex; gap: 8px; margin-left: auto; }
 
 .quick-chip {
   background-color: #ffffff;
@@ -1075,23 +1259,9 @@ onMounted(() => {
   gap: 8px;
 }
 
-.summary-title {
-  font-size: 17px;
-  font-weight: 800;
-  color: #2c3e50;
-}
-
-.highlight-num {
-  color: var(--dark-color);
-  font-size: 19px;
-  font-weight: 900;
-}
-
-.legend-hint {
-  font-size: 13px;
-  font-weight: 700;
-  color: #475569;
-}
+.summary-title { font-size: 17px; font-weight: 800; color: #2c3e50; }
+.highlight-num { color: var(--dark-color); font-size: 19px; font-weight: 900; }
+.legend-hint { font-size: 13px; font-weight: 700; color: #475569; }
 
 /* 表格樣式 */
 .table-wrapper {
@@ -1126,67 +1296,68 @@ onMounted(() => {
   transition: background-color 0.15s;
 }
 
-.tox-table tbody tr:hover {
-  background-color: #f8fafc;
-}
-
-.tox-table tbody tr.pending-row {
-  background-color: #fffaf0;
-}
+.tox-table tbody tr:hover { background-color: #f8fafc; }
+.tox-table tbody tr.pending-row { background-color: #fffaf0; }
 
 .tox-table td {
-  padding: 12px 12px;
+  padding: 13px 12px;
   vertical-align: middle;
   font-size: 13.5px;
   color: #334155;
 }
 
-.text-center {
-  text-align: center;
-}
+.text-center { text-align: center; }
+.cell-index { font-weight: 800; color: #475569; }
 
-.cell-index {
-  font-weight: 800;
-  color: #475569;
-}
-
-.user-main-info {
-  display: flex;
+/* 強制申請人姓名按鈕與『當前登入』徽章保持單行不換行 */
+.name-cell-wrap {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 4px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
-.user-email {
-  font-weight: 900;
+.applicant-name-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background-color: #f8fafc;
   color: #1b1e29;
-  font-size: 14.5px;
+  border: 1.5px solid #cbd5e1;
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+
+.applicant-name-btn:hover {
+  background-color: var(--light-color);
+  border-color: var(--dark-color);
+  color: var(--dark-color);
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.06);
+}
+
+.name-avatar-dot { font-size: 14px; line-height: 1; }
+.name-text { text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 
 .self-tag {
   background-color: #1b1e29;
   color: #f6d32d;
   font-size: 11px;
   font-weight: 800;
-  padding: 1px 7px;
+  padding: 2px 7px;
   border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
-.user-sub-info {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-size: 12px;
-  color: #475569;
-  font-weight: 600;
-  margin-bottom: 3px;
-}
-
-.user-reg-time {
-  font-size: 11.5px;
-  color: #94a3b8;
-  font-weight: 600;
-}
+.user-email { font-weight: 900; color: #1b1e29; font-size: 14.5px; }
 
 .status-toggle-btn {
   padding: 5px 10px;
@@ -1199,22 +1370,9 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-.status-toggle-btn.acc-active {
-  background-color: #dcfce7;
-  color: #166534;
-  border-color: #86efac;
-}
-
-.status-toggle-btn.acc-disabled {
-  background-color: #fee2e2;
-  color: #991b1b;
-  border-color: #fca5a5;
-}
-
-.status-toggle-btn:disabled {
-  opacity: 0.65;
-  cursor: not-allowed;
-}
+.status-toggle-btn.acc-active { background-color: #dcfce7; color: #166534; border-color: #86efac; }
+.status-toggle-btn.acc-disabled { background-color: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+.status-toggle-btn:disabled { opacity: 0.65; cursor: not-allowed; }
 
 .login-count-badge {
   background-color: #f1f5f9;
@@ -1226,54 +1384,26 @@ onMounted(() => {
   white-space: nowrap;
 }
 
-/* ================= 今日 AI 額度欄位專屬樣式 ================= */
+/* 今日 AI 額度欄位樣式 */
 .quota-cell-box {
   background-color: #f8fafc;
   border: 1px solid #cbd5e1;
   border-radius: 10px;
-  padding: 7px 10px;
+  padding: 6px 10px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
-  min-width: 170px;
+  gap: 4px;
+  min-width: 158px;
+  white-space: nowrap;
 }
 
-.quota-cell-box.unlimited {
-  background-color: #f0fdf4;
-  border-color: #86efac;
-}
+.quota-cell-box.unlimited { background-color: #f0fdf4; border-color: #86efac; }
+.quota-cell-box.q-box-warning { background-color: #fffbeb; border-color: #fcd34d; }
+.quota-cell-box.q-box-danger { background-color: #fef2f2; border-color: #fca5a5; }
 
-.quota-cell-box.q-box-warning {
-  background-color: #fffbeb;
-  border-color: #fcd34d;
-}
-
-.quota-cell-box.q-box-danger {
-  background-color: #fef2f2;
-  border-color: #fca5a5;
-}
-
-.q-top-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 6px;
-}
-
-.unlim-pill {
-  background-color: #dcfce7;
-  color: #166534;
-  font-size: 11.5px;
-  font-weight: 900;
-  padding: 1px 7px;
-  border-radius: 8px;
-}
-
-.q-count-text {
-  font-size: 12.5px;
-  font-weight: 800;
-  color: #1e293b;
-}
+.q-top-line { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.unlim-pill { background-color: #dcfce7; color: #166534; font-size: 11.5px; font-weight: 900; padding: 1px 7px; border-radius: 8px; }
+.q-count-text { font-size: 12.5px; font-weight: 800; color: #1e293b; }
 
 .reset-quota-btn {
   background-color: #ffffff;
@@ -1287,114 +1417,41 @@ onMounted(() => {
   transition: all 0.15s;
 }
 
-.reset-quota-btn:hover:not(:disabled) {
-  background-color: var(--dark-color);
-  color: #ffffff;
-}
+.reset-quota-btn:hover:not(:disabled) { background-color: var(--dark-color); color: #ffffff; }
 
-.mini-progress-track {
-  width: 100%;
-  height: 6px;
-  background-color: #e2e8f0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.mini-progress-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.3s ease;
-}
-
+.mini-progress-track { width: 100%; height: 6px; background-color: #e2e8f0; border-radius: 4px; overflow: hidden; }
+.mini-progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s ease; }
 .bar-normal { background-color: var(--dark-color); }
 .bar-warning { background-color: #f59e0b; }
 .bar-danger { background-color: #ef4444; }
+.q-token-text { font-size: 11px; color: #64748b; font-weight: 700; text-align: left; font-variant-numeric: tabular-nums; }
 
-.q-token-text {
-  font-size: 11px;
-  color: #64748b;
-  font-weight: 700;
-  text-align: left;
-  font-variant-numeric: tabular-nums;
-}
+.role-select, .role-pill { padding: 5px 8px; border-radius: 8px; font-size: 12.5px; font-weight: 800; border: 1.5px solid transparent; white-space: nowrap; }
+.role-admin { background-color: #fef3c7; color: #92400e; border-color: #f59e0b; }
+.role-expert { background-color: #e0f2fe; color: #075985; border-color: #38bdf8; }
+.role-member { background-color: #dcfce7; color: #166534; border-color: #4ade80; }
+.role-guest { background-color: #f1f5f9; color: #64748b; border-color: #cbd5e1; }
 
-/* 角色下拉與徽章 */
-.role-select,
-.role-pill {
-  padding: 5px 8px;
-  border-radius: 8px;
-  font-size: 12.5px;
-  font-weight: 800;
-  border: 1.5px solid transparent;
-}
+.approval-badge { display: inline-block; padding: 5px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.badge-pending { background-color: #ffca28; color: #1b1e29; }
+.badge-approved { background-color: var(--dark-color); color: #ffffff; }
+.badge-rejected { background-color: #ef5327; color: #ffffff; }
 
-.role-admin {
-  background-color: #fef3c7;
-  color: #92400e;
-  border-color: #f59e0b;
-}
-
-.role-expert {
-  background-color: #e0f2fe;
-  color: #075985;
-  border-color: #38bdf8;
-}
-
-.role-member {
-  background-color: #dcfce7;
-  color: #166534;
-  border-color: #4ade80;
-}
-
-.role-guest {
-  background-color: #f1f5f9;
-  color: #64748b;
-  border-color: #cbd5e1;
-}
-
-.approval-badge {
-  display: inline-block;
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.badge-pending {
-  background-color: #ffca28;
-  color: #1b1e29;
-}
-
-.badge-approved {
-  background-color: var(--dark-color);
-  color: #ffffff;
-}
-
-.badge-rejected {
-  background-color: #ef5327;
-  color: #ffffff;
-}
-
+/* 核定時間保持單行不換行 */
 .time-cell {
   font-variant-numeric: tabular-nums;
   font-size: 13px;
+  white-space: nowrap;
 }
+.approved-time-text { color: #1b1e29; font-weight: 700; white-space: nowrap; }
+.unapproved-dash { color: #94a3b8; font-weight: 600; font-size: 12px; white-space: nowrap; }
 
-.approved-time-text {
-  color: #1b1e29;
-  font-weight: 700;
-}
-
-.unapproved-dash {
-  color: #94a3b8;
-  font-weight: 600;
-  font-size: 12px;
-}
-
+/* 審核操作按鈕群 + 刪除圓形按鈕 */
 .audit-btn-group {
   display: inline-flex;
-  gap: 5px;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
 }
 
 .audit-btn {
@@ -1421,28 +1478,40 @@ onMounted(() => {
   border-color: #ef5327;
 }
 
-.audit-btn:disabled {
-  opacity: 0.45;
+.audit-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.delete-user-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid #64748b;
+  background-color: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-weight: 900;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.delete-user-btn:hover:not(:disabled) {
+  background-color: #ffebee;
+  color: #c62828;
+  border-color: #c62828;
+  transform: scale(1.08);
+}
+
+.delete-user-btn:disabled {
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
-.ip-code {
-  background-color: #f1f5f9;
-  color: #334155;
-  padding: 3px 8px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.log-result-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 6px;
-  font-size: 12.5px;
-  font-weight: 800;
-}
-
+.ip-code { background-color: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 6px; font-size: 13px; font-weight: 700; }
+.log-result-badge { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
 .log-success { background-color: var(--dark-color); color: #ffffff; }
 .log-guest { background-color: #e0f2f1; color: var(--dark-color); border: 1px solid var(--primary-color); }
 .log-pending { background-color: #ffca28; color: #1b1e29; }
@@ -1458,7 +1527,6 @@ onMounted(() => {
   font-weight: 800;
 }
 
-/* 頁碼列 (與 Review 及 History 頁面完全一致) */
 .pagination-bar {
   display: flex;
   justify-content: center;
@@ -1474,8 +1542,7 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
-.page-nav-btn,
-.page-num-btn {
+.page-nav-btn, .page-num-btn {
   background-color: transparent;
   border: none;
   color: #4a5568;
@@ -1487,8 +1554,7 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
-.page-nav-btn:hover:not(:disabled),
-.page-num-btn:hover:not(.active) {
+.page-nav-btn:hover:not(:disabled), .page-num-btn:hover:not(.active) {
   background-color: var(--light-color);
   color: var(--dark-color);
 }
@@ -1499,8 +1565,229 @@ onMounted(() => {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-.page-nav-btn:disabled {
-  color: #b0bec5;
-  cursor: not-allowed;
+.page-nav-btn:disabled { color: #b0bec5; cursor: not-allowed; }
+
+/* ================= 彈出視窗共用遮罩與申請人詳細資料視窗樣式 ================= */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(27, 30, 41, 0.65);
+  backdrop-filter: blur(3px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2700;
+  padding: 20px;
 }
+
+.detail-modal, .warn-modal {
+  background-color: #ffffff;
+  width: 95%;
+  max-width: 580px;
+  border-radius: 18px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-header {
+  background-color: #1b1e29;
+  color: #ffffff;
+  padding: 18px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 4px solid var(--dark-color);
+}
+
+.warn-header {
+  background-color: #1b1e29;
+  color: #ffffff;
+  padding: 18px 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 4px solid #e74c3c;
+}
+
+.header-title-group {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.detail-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background-color: rgba(255, 255, 255, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.warn-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background-color: #e74c3c;
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 19px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-subtitle { font-size: 11px; letter-spacing: 1.2px; color: #94a3b8; font-weight: 800; display: block; }
+.warn-subtitle { font-size: 11px; letter-spacing: 1.2px; color: #fca5a5; font-weight: 800; display: block; }
+.detail-title, .warn-title { margin: 2px 0 0 0; font-size: 19px; font-weight: 800; color: #ffffff; }
+
+.close-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  color: #cbd5e1;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  font-size: 17px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.close-btn:hover { background-color: #e74c3c; color: #ffffff; }
+
+.detail-body, .warn-body {
+  padding: 22px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.profile-item {
+  background-color: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 11px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.profile-item.full-row {
+  grid-column: span 2;
+  border-left: 4px solid var(--dark-color);
+}
+
+.p-label {
+  font-size: 12px;
+  font-weight: 800;
+  color: #64748b;
+}
+
+.p-value {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #1e293b;
+  word-break: break-all;
+}
+
+.email-highlight {
+  font-size: 15.5px;
+  color: var(--dark-color);
+}
+
+.detail-footer, .warn-footer {
+  padding: 14px 26px;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.got-it-btn {
+  background-color: #1b1e29;
+  color: #ffffff;
+  border: none;
+  padding: 9px 26px;
+  border-radius: 8px;
+  font-size: 14.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.got-it-btn:hover { background-color: var(--dark-color); }
+
+.target-summary-card {
+  background-color: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-left: 4px solid var(--dark-color);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.summary-item { font-size: 14.5px; color: #334155; }
+.s-label { color: #64748b; font-weight: 700; }
+.s-value { color: #1b1e29; font-weight: 800; }
+.consequence-lead { margin: 2px 0 0 0; font-size: 14.5px; color: #334155; }
+
+.consequence-list {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #475569;
+}
+
+.consequence-list code {
+  background-color: #f1f5f9;
+  color: #0f172a;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+}
+
+.cancel-btn {
+  background-color: #ffffff;
+  color: #475569;
+  border: 1.5px solid #cbd5e1;
+  padding: 9px 22px;
+  border-radius: 8px;
+  font-size: 14.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.confirm-delete-btn {
+  background-color: #e74c3c;
+  color: #ffffff;
+  border: none;
+  padding: 9px 24px;
+  border-radius: 8px;
+  font-size: 14.5px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(231, 76, 60, 0.25);
+}
+
+.confirm-delete-btn:hover:not(:disabled) { background-color: #c0392b; }
+
+.modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
 </style>

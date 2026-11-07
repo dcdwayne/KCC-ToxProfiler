@@ -75,7 +75,7 @@
             <div class="notes-links-row">
               <!-- 備註 1：以『訪客』身份進入 -->
               <button type="button" class="note-link-btn guest-btn" @click="handleEnterAsGuest">
-                👤 1. 以『訪客』身份進入（僅瀏覽 AI 導覽按鈕）
+                👤 以『訪客』身份進入
               </button>
 
               <!-- 備註 3：還沒有註冊嗎？ -->
@@ -88,7 +88,7 @@
 
         <!-- ================= 模式 B：註冊申請表單 ================= -->
         <form v-else class="auth-body" @submit.prevent="handleRegisterSubmit">
-          <!-- 必填區塊 -->
+          <!-- 必填區塊 (2x2 對齊)：申請帳號、設定密碼、真實姓名、聯絡電話 -->
           <div class="form-grid-2">
             <div class="field-group">
               <label>申請帳號（電子信箱）<span class="req">*</span></label>
@@ -128,6 +128,31 @@
                 </button>
               </div>
             </div>
+
+            <div class="field-group">
+              <label>申請人真實姓名（Name）<span class="req">*</span></label>
+              <input
+                type="text"
+                v-model.trim="regForm.name"
+                placeholder="請輸入您的真實姓名（必填）"
+                maxlength="30"
+                class="auth-input"
+                required
+              />
+            </div>
+
+            <div class="field-group">
+              <label>聯絡電話（Phone）<span class="req">*</span></label>
+              <input
+                type="tel"
+                v-model.trim="regForm.phone"
+                placeholder="例如：0912-345678 或市話（必填）"
+                maxlength="20"
+                class="auth-input"
+                required
+              />
+            </div>
+
           </div>
 
           <!-- 點選預申請的權限角色 -->
@@ -162,9 +187,9 @@
             </div>
           </div>
 
-          <!-- 選填基本資料區塊 (單位、姓名、職稱、電話 預設非必填) -->
+          <!-- 選填基本資料區塊 (服務單位、職稱 非必填) -->
           <div class="optional-divider">
-            <span>申請人基本資料（選填 Optional）</span>
+            <span>服務單位與職稱資訊（選填 Optional）</span>
           </div>
 
           <div class="form-grid-2">
@@ -180,34 +205,12 @@
             </div>
 
             <div class="field-group">
-              <label>真實姓名（Name）</label>
-              <input
-                type="text"
-                v-model.trim="regForm.name"
-                placeholder="請輸入您的姓名"
-                maxlength="30"
-                class="auth-input"
-              />
-            </div>
-
-            <div class="field-group">
               <label>職稱（Job Title）</label>
               <input
                 type="text"
                 v-model.trim="regForm.job_title"
                 placeholder="例如：研究員 / 毒理學分析師"
                 maxlength="40"
-                class="auth-input"
-              />
-            </div>
-
-            <div class="field-group">
-              <label>聯絡電話（Phone）</label>
-              <input
-                type="tel"
-                v-model.trim="regForm.phone"
-                placeholder="例如：02-23456789 或手機"
-                maxlength="20"
                 class="auth-input"
               />
             </div>
@@ -259,7 +262,7 @@ const showRegPwd = ref(false)
 const isSubmitting = ref(false)
 
 const feedbackMsg = ref('')
-const feedbackType = ref('error') // 'error' | 'success'
+const feedbackType = ref('error')
 
 const loginForm = reactive({
   email: '',
@@ -268,12 +271,12 @@ const loginForm = reactive({
 
 const regForm = reactive({
   email: '',
+  name: '',
+  phone: '',
   password: '',
   role: '會員',
   organization: '',
-  name: '',
-  job_title: '',
-  phone: ''
+  job_title: ''
 })
 
 watch(
@@ -367,6 +370,16 @@ const handleRegisterSubmit = async () => {
     feedbackMsg.value = '申請帳號必須為有效的電子信箱格式（如 name@domain.com）！'
     return
   }
+  if (!regForm.name.trim()) {
+    feedbackType.value = 'error'
+    feedbackMsg.value = '請填寫申請人真實姓名（必填）！'
+    return
+  }
+  if (!regForm.phone.trim()) {
+    feedbackType.value = 'error'
+    feedbackMsg.value = '請填寫聯絡電話（必填）！'
+    return
+  }
   if (regForm.password.length < 6) {
     feedbackType.value = 'error'
     feedbackMsg.value = '密碼長度至少需 6 個字元以上！'
@@ -419,7 +432,7 @@ const handleRegisterSubmit = async () => {
 .auth-modal {
   background-color: #ffffff;
   width: 95%;
-  max-width: 560px;
+  max-width: 580px;
   max-height: 90vh;
   border-radius: 18px;
   box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
@@ -493,7 +506,7 @@ const handleRegisterSubmit = async () => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 15px;
 }
 
 .form-grid-2 {
@@ -525,7 +538,7 @@ const handleRegisterSubmit = async () => {
   padding: 10px 14px;
   border: 1.5px solid #cbd5e1;
   border-radius: 10px;
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #1e293b;
   outline: none;

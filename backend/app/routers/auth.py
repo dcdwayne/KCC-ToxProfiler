@@ -270,11 +270,11 @@ def enter_as_guest(request: Request, db: Session = Depends(get_db)):
 class RegisterRequest(BaseModel):
     email: str
     password: str
-    role: str = "會員"  # 預申請角色：'專家' | '會員'
+    name: str                  # 必填：申請人真實姓名
+    phone: str                 # 👈 改為必填：聯絡電話
+    role: str = "會員"          # 預申請角色：'專家' | '會員'
     organization: str | None = None
-    name: str | None = None
     job_title: str | None = None
-    phone: str | None = None
 
     @field_validator("email")
     @classmethod
@@ -290,6 +290,22 @@ class RegisterRequest(BaseModel):
         if len(v) < 6 or len(v) > 64:
             raise ValueError("密碼長度須介於 6 至 64 個字元之間")
         return v
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        cleaned = sanitize_user_field(v, max_len=30)
+        if not cleaned:
+            raise ValueError("請填寫申請人真實姓名（必填）")
+        return cleaned
+
+    @field_validator("phone")
+    @classmethod
+    def validate_phone(cls, v: str) -> str:
+        cleaned = sanitize_user_field(v, max_len=25)
+        if not cleaned:
+            raise ValueError("請填寫聯絡電話（必填）")
+        return cleaned
 
 
 @router.post("/register")
@@ -307,11 +323,11 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
     new_user = User(
         email=payload.email,
         password_hash=hash_password(payload.password),
+        name=payload.name,
+        phone=payload.phone,
         role=applied_role,
         organization=sanitize_user_field(payload.organization, max_len=80),
-        name=sanitize_user_field(payload.name, max_len=30),
         job_title=sanitize_user_field(payload.job_title, max_len=50),
-        phone=sanitize_user_field(payload.phone, max_len=25),
         approval_status="PENDING",
         account_status="ACTIVE",
         login_count=0
@@ -321,8 +337,9 @@ def register_user(payload: RegisterRequest, db: Session = Depends(get_db)):
     db.refresh(new_user)
 
     return {
-        "message": f"註冊申請已送出！您預申請的角色為「{applied_role}」，待系統管理者審核通過後即可登入使用。",
+        "message": f"註冊申請已送出！申請人「{new_user.name}」預申請的角色為「{applied_role}」，待系統管理者審核通過後即可登入使用。",
         "email": new_user.email,
+        "name": new_user.name,
         "role": new_user.role,
         "approval_status": new_user.approval_status
     }
