@@ -478,4 +478,71 @@ const adjustTooltipPosition = (event) => {
   color: #f1f3f5;
   font-weight: normal;
 }
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .modal-content {
+    width: 94vw;
+    min-width: 0;
+  }
+
+  .modal-scroll-area {
+    padding: 22px 24px;
+  }
+
+  .kcc-hover-tooltip {
+    width: 340px;
+    max-width: 82vw;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .modal-overlay {
+    padding: 10px;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 100%;
+    max-height: 90vh;
+    border-radius: 14px;
+  }
+
+  .modal-scroll-area {
+    padding: 16px 14px;
+  }
+
+  .paper-full-title {
+    font-size: 18px;
+  }
+
+  .meta-badges-row {
+    gap: 6px;
+  }
+
+  .info-tag {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+
+  .abstract-container {
+    font-size: 14px;
+    text-align: left;
+  }
+
+  /* 手機版將 KCC 關鍵片段視窗固定於畫面下方，避免超出左右邊界 */
+  .kcc-hover-tooltip {
+    position: fixed !important;
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 14px !important;
+    top: auto !important;
+    width: calc(100vw - 24px) !important;
+    max-width: none !important;
+    z-index: 3000;
+  }
+}
 </style>

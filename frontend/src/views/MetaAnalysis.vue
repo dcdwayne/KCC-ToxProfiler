@@ -422,4 +422,82 @@ onUnmounted(() => {
   border-radius: 12px;
   min-height: 460px;
 }
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .meta-page {
+    min-width: 0;
+    max-width: 100%;
+    padding: 0 16px;
+  }
+
+  .main-title {
+    font-size: 30px;
+  }
+
+  .target-name {
+    font-size: 24px;
+  }
+
+  .action-btn.tab-btn {
+    padding: 10px 20px;
+    min-width: 130px;
+    font-size: 15px;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .meta-page {
+    margin: 12px auto 28px auto;
+    padding: 0 12px;
+  }
+
+  .meta-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .main-title {
+    font-size: 23px;
+    line-height: 1.3;
+  }
+
+  .target-name {
+    font-size: 20px;
+  }
+
+  /* 手機版 Hazard Score 改為橫向緊湊排列 */
+  .score-badge {
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 12px 18px;
+  }
+
+  .score-value {
+    font-size: 32px;
+    margin: 0;
+  }
+
+  .tab-nav {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .action-btn.tab-btn {
+    flex: 1 1 calc(50% - 8px);
+    min-width: 0;
+    padding: 9px 10px;
+    font-size: 13.5px;
+    text-align: center;
+  }
+
+  .content-area {
+    padding: 14px 12px;
+  }
+}
 </style>

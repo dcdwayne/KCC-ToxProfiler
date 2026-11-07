@@ -4,7 +4,7 @@
     <div class="nav-left" @click="goHome">
       <img src="/dr-manhattan-logo.png" alt="Logo" class="logo-img" />
       <h1 class="product-title">
-        {{ t('KCC ToxProfiler 致癌物關鍵特徵歸納平臺', 'KCC ToxProfiler Carcinogen Hazard Platform') }}
+        {{ t('KCC ToxProfiler 致癌物關鍵特徵歸納平臺', 'KCC ToxProfiler - Carcinogen Hazard Identification Platform') }}
       </h1>
     </div>
     
@@ -194,11 +194,20 @@ onMounted(() => {
 }
 
 .product-title {
-  color: #1b1e29;
+  color: white;
   font-size: 20px;
   margin: 0;
   font-weight: 800;
   letter-spacing: 0.5px;
+  text-shadow: 
+    -2px -2px 0 #000,  /* 左上 */
+    0   -2px 0 #000,  /* 正上 */
+    2px -2px 0 #000,  /* 右上 */
+    2px  0   0 #000,  /* 正右 */
+    2px  2px 0 #000,  /* 右下 */
+    0    2px 0 #000,  /* 正下 */
+    -2px  2px 0 #000,  /* 左下 */
+    -2px  0   0 #000;  /* 正左 */
 }
 
 .nav-right {
@@ -331,4 +340,100 @@ onMounted(() => {
   background-color: var(--dark-color);
   color: #ffffff;
 }
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .navbar {
+    padding: 0 16px;
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .product-title {
+    font-size: 17px;
+  }
+
+  .nav-right {
+    gap: 10px;
+  }
+
+  .nav-page-btn {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+
+  .role-status-pill {
+    font-size: 11.5px;
+    padding: 4px 9px;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .navbar {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .nav-left {
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .logo-img {
+    height: 32px;
+  }
+
+  .product-title {
+    font-size: 15px;
+    text-align: center;
+    line-height: 1.3;
+  }
+
+  .nav-right {
+    flex-direction: column;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .nav-page-group {
+    width: 100%;
+    justify-content: space-between;
+    overflow-x: auto;
+    padding: 4px;
+  }
+
+  .nav-page-btn {
+    flex: 1;
+    text-align: center;
+    padding: 6px 8px;
+    font-size: 13px;
+  }
+
+  .nav-divider {
+    display: none;
+  }
+
+  .nav-utility-group {
+    width: 100%;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .login-nav-btn,
+  .lang-toggle {
+    padding: 5px 14px;
+    font-size: 13px;
+  }
+}
+
 </style>

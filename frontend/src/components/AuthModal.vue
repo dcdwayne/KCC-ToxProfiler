@@ -766,4 +766,46 @@ const handleRegisterSubmit = async () => {
 .modal-fade-leave-to {
   opacity: 0;
 }
+
+/* ================= RWD 響應式設計 ================= */
+
+@media screen and (max-width: 600px) {
+  .auth-overlay {
+    padding: 10px;
+  }
+
+  .auth-modal {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 14px;
+  }
+
+  .auth-header {
+    padding: 14px 16px;
+  }
+
+  .auth-title {
+    font-size: 16.5px;
+  }
+
+  .auth-body {
+    padding: 16px 16px;
+    gap: 12px;
+  }
+
+  .form-grid-2,
+  .role-selector-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .notes-links-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .note-link-btn {
+    text-align: center;
+  }
+}
 </style>

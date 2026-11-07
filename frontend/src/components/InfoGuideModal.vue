@@ -607,4 +607,49 @@ const currentGuide = computed(() => {
 .modal-fade-leave-to {
   opacity: 0;
 }
+
+/* ================= RWD 響應式設計 ================= */
+
+@media screen and (max-width: 600px) {
+  .guide-overlay {
+    padding: 10px;
+  }
+
+  .guide-modal {
+    width: 100%;
+    max-height: 90vh;
+    border-radius: 14px;
+  }
+
+  .guide-header {
+    padding: 14px 16px;
+  }
+
+  .guide-title {
+    font-size: 16.5px;
+  }
+
+  .guide-body {
+    padding: 16px 14px;
+    gap: 12px;
+  }
+
+  .step-card {
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .step-badge {
+    width: fit-content;
+  }
+
+  .guide-footer {
+    padding: 12px 16px;
+  }
+
+  .got-it-btn {
+    width: 100%;
+  }
+}
 </style>

@@ -725,4 +725,120 @@ input[type="number"].year-input:focus {
   transform: scale(0.96);
   transition: all 0.1s ease;
 }
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .home-view {
+    max-width: 95%;
+    padding: 0 16px;
+  }
+
+  .main-title {
+    font-size: 28px;
+  }
+
+  .search-panel {
+    padding: 24px 26px;
+  }
+
+  .chip-container.chem-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .home-view {
+    margin: 12px auto 28px auto;
+    padding: 0 12px;
+  }
+
+  .main-title {
+    font-size: 22px;
+    line-height: 1.35;
+  }
+
+  .sub-title-banner {
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 14px;
+    border-radius: 14px;
+  }
+
+  .sub-title {
+    font-size: 13.5px;
+    text-align: center;
+  }
+
+  .search-panel {
+    padding: 18px 16px;
+    border-radius: 18px;
+  }
+
+  .header-zh,
+  .banner-zh {
+    font-size: 17px;
+  }
+
+  .header-en,
+  .banner-en {
+    font-size: 11.5px;
+  }
+
+  /* 手機版 5 大化學物質改為 2 欄排列，第 5 個橫跨 2 欄 */
+  .chip-container.chem-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .chip-container.chem-grid .chem-btn:last-child {
+    grid-column: span 2;
+  }
+
+  .chip-btn {
+    padding: 9px 10px;
+    font-size: 14px;
+  }
+
+  .filter-box {
+    padding: 14px 14px;
+  }
+
+  .form-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .row-label {
+    width: 100%;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .row-control {
+    width: 100%;
+    gap: 6px;
+  }
+
+  .radio-group {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .radio-label {
+    justify-content: flex-start;
+  }
+
+  .action-btn.preview,
+  .action-btn.submit {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+}
 </style>

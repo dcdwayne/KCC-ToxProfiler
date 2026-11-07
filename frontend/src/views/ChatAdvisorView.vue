@@ -9,7 +9,7 @@
           <span class="assistant-badge">AI ADVISOR</span>
         </div>
         <h2 class="topbar-title">
-          {{ t('KCC 毒理學智能助理 Dr. Manhattan', 'KCC Toxicology AI Advisor — Dr. Manhattan') }}
+          {{ t('危害辨識導覽員 - Dr. Manhattan', 'Hazard Advisor - Dr. Manhattan') }}
         </h2>
         <button class="reset-top-btn" @click="restartConversation" :title="t('重新開始對話導覽', 'Restart guided conversation')">
           {{ t('↻ 重新導覽', '↻ Restart') }}
@@ -44,7 +44,7 @@
                   </div>
                 </div>
                 <div class="hero-intro-tag">
-                  <strong>{{ t('Dr. Manhattan 危害辨識導覽員', 'Dr. Manhattan Hazard Advisor') }}</strong>
+                  <strong>{{ t('Dr. Manhattan 已上線', 'Dr. Manhattan  is online now') }}</strong>
                   <span>{{ t('已連結 FastMCP 實證毒理知識庫', 'Connected to FastMCP Toxicology Knowledge Base') }}</span>
                 </div>
               </div>
@@ -861,7 +861,15 @@ onMounted(() => {
 .topbar-left { display: flex; align-items: center; gap: 8px; }
 .status-dot { width: 9px; height: 9px; border-radius: 50%; background-color: #10b981; box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2); }
 .assistant-badge { font-size: 11.5px; font-weight: 900; letter-spacing: 1px; color: var(--dark-color); background-color: var(--light-color); padding: 3px 10px; border-radius: 12px; }
-.topbar-title { margin: 0; font-size: 18px; font-weight: 900; color: #1b1e29; letter-spacing: 0.5px; }
+.topbar-title { margin: 0; font-size: 22px; font-weight: 900; color: white; letter-spacing: 0.5px; text-shadow: 
+    -2px -2px 0 #000,  /* 左上 */
+    0   -2px 0 #000,  /* 正上 */
+    2px -2px 0 #000,  /* 右上 */
+    2px  0   0 #000,  /* 正右 */
+    2px  2px 0 #000,  /* 右下 */
+    0    2px 0 #000,  /* 正下 */
+    -2px  2px 0 #000,  /* 左下 */
+    -2px  0   0 #000;  /* 正左 */}
 
 .reset-top-btn {
   background-color: #f8fafc;
@@ -1082,4 +1090,153 @@ onMounted(() => {
 :deep(.bullet-item), :deep(.num-item) { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
 :deep(.bullet-dot), :deep(.num-idx) { color: var(--dark-color); font-weight: 900; }
 :deep(.apa-citation) { position: relative; display: inline-block; background-color: #e3f2fd; color: #0d47a1; padding: 0px 6px; border-radius: 4px; cursor: pointer; border-bottom: 1px dashed #1976d2; font-weight: 700; }
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .chat-page {
+    padding: 0 14px;
+  }
+
+  .chat-window {
+    height: calc(100vh - 115px);
+  }
+
+  .ai-content-col {
+    max-width: 88%;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .chat-page {
+    margin: 8px auto 14px auto;
+    padding: 0 8px;
+  }
+
+  .chat-window {
+    height: calc(100dvh - 130px);
+    min-height: 480px;
+    border-radius: 14px;
+  }
+
+  .chat-topbar {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .assistant-badge {
+    display: none;
+  }
+
+  .topbar-title {
+    font-size: 14.5px;
+    text-align: center;
+    flex: 1;
+  }
+
+  .reset-top-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .chat-Viewport {
+    padding: 14px 12px;
+    gap: 16px;
+  }
+
+  .message-row {
+    gap: 8px;
+  }
+
+  .ai-avatar-circle {
+    width: 34px;
+    height: 34px;
+  }
+
+  .avatar-fallback {
+    font-size: 18px;
+  }
+
+  .ai-content-col {
+    max-width: calc(100% - 42px);
+  }
+
+  .hero-mascot-box {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .hero-avatar-frame {
+    width: 68px;
+    height: 68px;
+  }
+
+  .ai-bubble {
+    padding: 12px 14px;
+    font-size: 14px;
+  }
+
+  .choice-chip-btn {
+    padding: 8px 14px;
+    font-size: 13.5px;
+  }
+
+  /* 手機版將並排主題卡片改為 100% 滿版上下排列 */
+  .alpha-card-deck {
+    flex-direction: column;
+  }
+
+  .alpha-card {
+    width: 100%;
+  }
+
+  .user-content-col {
+    max-width: 86%;
+  }
+
+  .user-bubble {
+    padding: 10px 14px;
+    font-size: 14px;
+  }
+
+  /* 手機版額度追蹤彈窗自適應滿版寬度 */
+  .quota-popover-card {
+    left: 10px;
+    right: 10px;
+    bottom: 66px;
+    width: auto;
+  }
+
+  .quota-alert-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    gap: 6px;
+  }
+
+  .chat-input-bar {
+    padding: 8px 10px;
+    gap: 8px;
+  }
+
+  .quota-trigger-btn {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+
+  .chat-text-input {
+    padding: 9px 14px;
+    font-size: 14px;
+  }
+
+  .send-circle-btn {
+    width: 38px;
+    height: 38px;
+  }
+}
 </style>

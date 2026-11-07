@@ -278,4 +278,42 @@ const getEvidenceTextClass = (level) => {
 .text-moderate { font-size: 12px; color: #f57f17; }
 .text-weak { font-size: 12px; color: #607d8b; }
 .text-inadequate { font-size: 12px; color: #9e9e9e; }
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .kcc-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+
+  .kcc-card {
+    min-height: 175px;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .legend-hint {
+    font-size: 11.5px;
+    line-height: 1.4;
+  }
+
+  .kcc-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .kcc-card {
+    min-height: auto;
+    padding: 14px;
+  }
+}
 </style>

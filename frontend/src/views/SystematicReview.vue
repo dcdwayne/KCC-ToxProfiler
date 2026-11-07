@@ -1185,4 +1185,120 @@ onUnmounted(() => {
   color: #b0bec5;
   cursor: not-allowed;
 }
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .review-page {
+    padding: 0 16px;
+  }
+
+  .main-title {
+    font-size: 30px;
+  }
+
+  .content-layout {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sidebar-filter {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px 20px;
+    padding: 20px;
+  }
+
+  .section-header-bar,
+  .filter-action-row {
+    grid-column: span 2;
+  }
+
+  .evidence-pool-section {
+    width: 100%;
+  }
+
+  .kcc-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .review-page {
+    margin: 12px auto 28px auto;
+    padding: 0 12px;
+  }
+
+  .main-title {
+    font-size: 24px;
+    margin-bottom: 12px;
+  }
+
+  .sidebar-filter {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    border-radius: 18px;
+    gap: 12px;
+  }
+
+  .section-header-bar,
+  .filter-action-row {
+    grid-column: span 1;
+  }
+
+  .pool-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-btn.submit-analysis {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* 手機版 10 KCC 按鈕改為 2 欄 x 5 列 */
+  .kcc-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .kcc-btn {
+    font-size: 11px;
+    padding: 8px 6px;
+    word-break: break-word;
+  }
+
+  .list-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .list-title,
+  .list-contents {
+    font-size: 15.5px;
+  }
+
+  .sort-options {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .pagination-bar {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 4px;
+  }
+
+  .page-nav-btn,
+  .page-num-btn {
+    padding: 5px 9px;
+    font-size: 13px;
+  }
+}
 </style>

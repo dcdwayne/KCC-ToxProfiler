@@ -819,4 +819,98 @@ onMounted(() => {
 .confirm-delete-btn:disabled, .cancel-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .history-page {
+    padding: 0 16px;
+  }
+
+  .main-title {
+    font-size: 30px;
+  }
+
+  .filter-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .summary-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .history-page {
+    margin: 12px auto 28px auto;
+    padding: 0 12px;
+  }
+
+  .main-title {
+    font-size: 24px;
+  }
+
+  .filter-card {
+    padding: 16px 14px;
+    border-radius: 14px;
+  }
+
+  .filter-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .filter-btn-group {
+    width: 100%;
+  }
+
+  .btn-outline,
+  .btn-solid {
+    flex: 1;
+    text-align: center;
+  }
+
+  .filter-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .summary-title {
+    font-size: 14.5px;
+    line-height: 1.45;
+  }
+
+  .sort-options {
+    font-size: 13.5px;
+    gap: 6px;
+  }
+
+  .chip-btn {
+    padding: 5px 10px;
+    font-size: 12.5px;
+  }
+
+  .table-wrapper {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .warn-body {
+    padding: 16px 16px;
+  }
+
+  .warn-footer {
+    padding: 12px 16px;
+  }
+
+  .cancel-btn,
+  .confirm-delete-btn {
+    flex: 1;
+    padding: 9px 12px;
+  }
+}
 </style>

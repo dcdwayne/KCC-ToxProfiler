@@ -211,4 +211,53 @@ const getRankClass = (quartile) => {
   color: #c62828;
   border-color: #c62828;
 }
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .paper-title {
+    max-width: 340px;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .paper-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .row-left {
+    align-items: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .paper-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    max-width: 100%;
+    font-size: 14.5px;
+    line-height: 1.4;
+    flex: 1;
+  }
+
+  .row-right {
+    width: 100%;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px dashed #e2e8f0;
+    gap: 8px;
+  }
+
+  .rerank-text {
+    min-width: auto;
+    font-size: 13px;
+  }
+}
 </style>

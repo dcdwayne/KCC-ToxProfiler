@@ -50,7 +50,6 @@
         </div>
 
         <div class="filter-grid">
-          <!-- 關鍵字搜尋 -->
           <div class="filter-item">
             <label>{{ t('關鍵字查詢（姓名 / 信箱 / 單位）', 'Keyword (Name / Email / Org)') }}</label>
             <input
@@ -62,7 +61,6 @@
             />
           </div>
 
-          <!-- 權限角色篩選 -->
           <div class="filter-item">
             <label>{{ t('權限角色 Role', 'Role') }}</label>
             <select v-model="approvalFilters.role" class="select-input" @change="fetchUsers">
@@ -73,7 +71,6 @@
             </select>
           </div>
 
-          <!-- 確認狀態 (審核狀態) 篩選 -->
           <div class="filter-item">
             <label>{{ t('確認狀態 Approval Status', 'Approval Status') }}</label>
             <select v-model="approvalFilters.approval_status" class="select-input" @change="fetchUsers">
@@ -84,7 +81,6 @@
             </select>
           </div>
 
-          <!-- 帳號狀態篩選 -->
           <div class="filter-item">
             <label>{{ t('帳號狀態 Account Status', 'Account Status') }}</label>
             <select v-model="approvalFilters.account_status" class="select-input" @change="fetchUsers">
@@ -116,13 +112,13 @@
         </div>
       </div>
 
-      <!-- 帳號核准表格 (重新調配各欄舒適寬度，防止換行擠壓) -->
+      <!-- 帳號核准表格 (底部支援平滑左右拖曳捲動，與 HistoryView 一致) -->
       <div v-if="isLoadingUsers" class="empty-box">
         {{ t('正在載入帳號與權限核准資料...', 'Loading account approval list...') }}
       </div>
 
       <div v-else-if="paginatedUsers.length > 0" class="table-wrapper">
-        <table class="tox-table">
+        <table class="tox-table approval-table">
           <thead>
             <tr>
               <th style="width: 44px; text-align: center;">#</th>
@@ -183,7 +179,6 @@
 
               <!-- 5. 今日 AI 額度消耗 (次數 / Tokens + 一鍵重置) -->
               <td class="text-center">
-                <!-- 專家與系統管理者：無上限 -->
                 <div v-if="u.is_unlimited_quota" class="quota-cell-box unlimited">
                   <div class="q-top-line">
                     <span class="unlim-pill">{{ t('∞ 無上限', '∞ Unlimited') }}</span>
@@ -194,7 +189,6 @@
                   </div>
                 </div>
 
-                <!-- 會員：顯示每日 10 次 / 50,000 Tokens 與進度條 -->
                 <div v-else class="quota-cell-box" :class="getMemberQuotaBoxClass(u)">
                   <div class="q-top-line">
                     <span class="q-count-text">
@@ -319,7 +313,6 @@
     <!-- 子頁面 2：使用者登入紀錄 Log 頁面 (含時間區間查詢)                        -->
     <!-- ======================================================================= -->
     <section v-else class="panel-container">
-      <!-- 登入紀錄篩選條件區塊 (含時間區間查詢) -->
       <div class="filter-card">
         <div class="filter-card-header">
           <div class="pool-title-banner">
@@ -332,13 +325,14 @@
           </div>
         </div>
 
-        <!-- 第一列：時間區間查詢 + 快速範圍按鈕 -->
         <div class="time-range-row">
           <span class="range-label">{{ t('📅 登入時間區間（台灣時區）：', '📅 Date Range (UTC+8):') }}</span>
-          <span class="range-sub">{{ t('從', 'From') }}</span>
-          <input type="date" v-model="logFilters.start_date" class="date-input" />
-          <span class="range-sub">{{ t('至', 'to') }}</span>
-          <input type="date" v-model="logFilters.end_date" class="date-input" />
+          <div class="date-inputs-group">
+            <span class="range-sub">{{ t('從', 'From') }}</span>
+            <input type="date" v-model="logFilters.start_date" class="date-input" />
+            <span class="range-sub">{{ t('至', 'to') }}</span>
+            <input type="date" v-model="logFilters.end_date" class="date-input" />
+          </div>
 
           <div class="quick-date-btns">
             <button type="button" class="quick-chip" @click="setQuickDateRange(0)">{{ t('今日', 'Today') }}</button>
@@ -348,7 +342,6 @@
           </div>
         </div>
 
-        <!-- 第二列：關鍵字 / 角色 / 登入結果 -->
         <div class="filter-grid log-grid-3">
           <div class="filter-item">
             <label>{{ t('關鍵字搜尋（帳號信箱 / 姓名 / IP 位址）', 'Keyword (Email / Name / IP)') }}</label>
@@ -387,7 +380,6 @@
         </div>
       </div>
 
-      <!-- 登入紀錄筆數與頁數統計列 -->
       <div class="summary-bar">
         <div class="summary-left">
           <span v-if="!isEn" class="summary-title">
@@ -406,13 +398,13 @@
       </div>
 
       <div v-else-if="paginatedLogs.length > 0" class="table-wrapper">
-        <table class="tox-table">
+        <table class="tox-table logs-table">
           <thead>
             <tr>
               <th style="width: 56px; text-align: center;">#</th>
               <th style="width: 185px;">{{ t('登入時間 (台灣時區)', 'Login Time (UTC+8)') }}</th>
-              <th>{{ t('登入帳號 (Email)', 'Account (Email)') }}</th>
-              <th style="width: 150px;">{{ t('使用者姓名', 'User Name') }}</th>
+              <th style="min-width: 210px;">{{ t('登入帳號 (Email)', 'Account (Email)') }}</th>
+              <th style="min-width: 145px;">{{ t('使用者姓名', 'User Name') }}</th>
               <th style="width: 130px; text-align: center;">{{ t('權限角色', 'Role') }}</th>
               <th style="width: 150px; text-align: center;">{{ t('來源 IP 位址', 'IP Address') }}</th>
               <th style="width: 195px; text-align: center;">{{ t('登入驗證結果', 'Login Result') }}</th>
@@ -426,10 +418,12 @@
               <td class="time-cell">
                 <strong>{{ lg.login_at_tw }}</strong>
               </td>
-              <td>
+              <td class="nowrap-cell">
                 <span class="user-email">{{ lg.email }}</span>
               </td>
-              <td>{{ formatLogUserName(lg.name) }}</td>
+              <td class="nowrap-cell">
+                <strong>{{ formatLogUserName(lg.name) }}</strong>
+              </td>
               <td class="text-center">
                 <span class="role-pill" :class="getRoleSelectClass(lg.role)">
                   {{ translateRole(lg.role) }}
@@ -452,7 +446,6 @@
         {{ t('此時間區間與篩選條件下無任何登入紀錄。', 'No login records found for this date range and filter criteria.') }}
       </div>
 
-      <!-- 登入紀錄頁碼列 (« 首頁 01 02 03 最後 ») -->
       <div class="pagination-bar" v-if="logTotalPages > 1">
         <button class="page-nav-btn" :disabled="logPage === 1" @click="logPage = 1">
           {{ t('« 首頁', '« First') }}
@@ -638,8 +631,6 @@ const APPROVAL_ITEMS_PER_PAGE = 6   // 『權限核准』每頁顯示幾筆帳�
 const LOG_ITEMS_PER_PAGE = 8        // 『使用者登入紀錄』每頁顯示幾筆 Log
 
 const isGuideOpen = ref(false)
-
-// 預設先在『權限核准』頁面 ('approval' | 'logs')
 const activeTab = ref('approval')
 
 // --- 子頁面 1：權限核准狀態 ---
@@ -766,7 +757,6 @@ const visibleApprovalPages = computed(() => {
   return pages
 })
 
-// --- 分頁計算邏輯：登入紀錄 ---
 const logTotalPages = computed(() => {
   return Math.max(1, Math.ceil(logList.value.length / LOG_ITEMS_PER_PAGE))
 })
@@ -789,7 +779,6 @@ const visibleLogPages = computed(() => {
 
 const formatPageNumber = (num) => String(num).padStart(2, '0')
 
-// 切換頂部子頁籤
 const switchSubTab = async (tabName) => {
   activeTab.value = tabName
   if (tabName === 'approval') {
@@ -799,9 +788,6 @@ const switchSubTab = async (tabName) => {
   }
 }
 
-// =====================================================================
-// 今日 AI 額度百分比與顏色計算
-// =====================================================================
 const getMemberQuotaPercent = (u) => {
   const qPct = u.question_limit ? (u.today_questions / u.question_limit) * 100 : 0
   const tPct = u.token_limit ? (u.today_tokens / u.token_limit) * 100 : 0
@@ -822,9 +808,6 @@ const getMemberQuotaBarClass = (u) => {
   return 'bar-normal'
 }
 
-// =====================================================================
-// API 呼叫：權限核准管理與重置額度
-// =====================================================================
 const fetchUsers = async () => {
   isLoadingUsers.value = true
   try {
@@ -858,7 +841,6 @@ const resetApprovalFilters = async () => {
   await fetchUsers()
 }
 
-// 一鍵重置該名會員今日的 AI 提問次數與 Token 消耗
 const handleResetUserQuota = async (user) => {
   updatingUserId.value = user.id
   try {
@@ -900,7 +882,6 @@ const handleAuditUser = async (user, newStatus) => {
   }
 }
 
-// 變更使用者權限角色
 const handleChangeUserRole = async (user, newRole) => {
   updatingUserId.value = user.id
   try {
@@ -921,7 +902,6 @@ const handleChangeUserRole = async (user, newRole) => {
   }
 }
 
-// 切換帳號啟用 / 停用狀態
 const handleToggleAccountStatus = async (user) => {
   const nextStatus = user.account_status === 'ACTIVE' ? 'DISABLED' : 'ACTIVE'
   updatingUserId.value = user.id
@@ -942,9 +922,6 @@ const handleToggleAccountStatus = async (user) => {
   }
 }
 
-// =====================================================================
-// API 呼叫：使用者登入紀錄與時間區間查詢
-// =====================================================================
 const fetchLoginLogs = async () => {
   isLoadingLogs.value = true
   try {
@@ -969,7 +946,6 @@ const fetchLoginLogs = async () => {
   }
 }
 
-// 快速設定台灣日期區間 (今日 / 近 7 天 / 近 30 天)
 const formatDateYMD = (dateObj) => {
   const y = dateObj.getFullYear()
   const m = String(dateObj.getMonth() + 1).padStart(2, '0')
@@ -1001,7 +977,6 @@ const resetLogFilters = async () => {
   await fetchLoginLogs()
 }
 
-// --- 狀態文字與樣式輔助函式 ---
 const formatApprovalLabel = (status) => {
   if (status === 'APPROVED') return t('已審核 (通過)', 'Approved')
   if (status === 'REJECTED') return t('已審核 (未通過)', 'Rejected')
@@ -1054,63 +1029,158 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 完整保留你調好之不換行與舒適欄寬樣式 */
-.account-page { max-width: 1280px; margin: 20px auto 40px auto; padding: 0 20px; }
+/* 關鍵修正 1：與 HistoryView.vue 對齊，強制設定 width: 100% 與 box-sizing: border-box，防止被內部寬表格撐爆螢幕 */
+.account-page {
+  width: 100%;
+  max-width: 1280px;
+  margin: 20px auto 40px auto;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.panel-container {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
 .page-header { margin-bottom: 16px; }
 .main-title {
-  color: #1b1e29; font-size: 38px; margin-top: 4px; margin-bottom: 16px;
+  color: white;; font-size: 38px; margin-top: 4px; margin-bottom: 16px;
   font-weight: 900; letter-spacing: 1.5px;
-  text-shadow: 1px 1px 0px #f6d32d, 2px 2px 0px #f6d32d, 3px 3px 0px #e25740, 4px 4px 0px #f6d32d;
+  text-shadow: 
+    -2px -2px 0 #000,  /* 左上 */
+    0   -2px 0 #000,  /* 正上 */
+    2px -2px 0 #000,  /* 右上 */
+    2px  0   0 #000,  /* 正右 */
+    2px  2px 0 #000,  /* 右下 */
+    0    2px 0 #000,  /* 正下 */
+    -2px  2px 0 #000,  /* 左下 */
+    -2px  0   0 #000;  /* 正左 */
 }
-.title-en { color: #e74c3c; }
-.sub-tab-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+.title-en { 
+  color: white;
+  font-weight: 900;
+}
+
+.sub-tab-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .info-btn {
   width: 32px; height: 32px; border-radius: 50%;
   border: 1.5px solid var(--dark-color); background-color: var(--light-color);
   color: var(--dark-color); font-weight: 900; font-size: 15px;
-  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s ease;
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: all 0.2s ease;
 }
 .info-btn:hover { background-color: var(--dark-color); color: #ffffff; }
+
 .action-btn.tab-btn {
   background-color: #ffffff; color: #333; border: 1.5px solid var(--dark-color);
   padding: 10px 28px; border-radius: 10px; font-size: 16px; font-weight: 800;
   cursor: pointer; transition: all 0.2s ease; display: inline-flex; align-items: center; gap: 8px;
+  white-space: nowrap;
 }
 .action-btn.tab-btn.active, .action-btn.tab-btn:hover { background-color: var(--dark-color); color: #ffffff; }
 .pending-count-pill { background-color: #ef5327; color: #ffffff; font-size: 12px; font-weight: 900; padding: 2px 8px; border-radius: 12px; }
 
-.filter-card { background-color: #ffffff; border-radius: 18px; padding: 20px 24px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04); margin-bottom: 18px; border: 1px solid #ffffff; }
-.filter-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--light-color); flex-wrap: wrap; gap: 10px; }
-.pool-title-banner { display: flex; align-items: baseline; gap: 10px; border-left: 5px solid var(--dark-color); padding-left: 12px; }
+.filter-card {
+  width: 100%;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  border-radius: 18px;
+  padding: 20px 24px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  margin-bottom: 18px;
+  border: 1px solid #ffffff;
+}
+
+.filter-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid var(--light-color);
+  flex-wrap: wrap; gap: 10px;
+}
+
+.pool-title-banner { display: flex; align-items: baseline; gap: 10px; border-left: 5px solid var(--dark-color); padding-left: 12px; flex-wrap: wrap; }
 .banner-zh { font-size: 19px; font-weight: 900; color: #2c3e50; }
 .banner-en { font-size: 13px; font-weight: 800; color: var(--dark-color); letter-spacing: 1px; }
 .filter-btn-group { display: flex; gap: 10px; }
-.btn-outline { background-color: #ffffff; color: var(--dark-color); border: 1.5px solid var(--dark-color); padding: 7px 18px; border-radius: 8px; font-weight: 800; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+.btn-outline { background-color: #ffffff; color: var(--dark-color); border: 1.5px solid var(--dark-color); padding: 7px 18px; border-radius: 8px; font-weight: 800; font-size: 14px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
 .btn-outline:hover { background-color: var(--light-color); }
-.btn-solid { background-color: #1b1e29; color: #ffffff; border: 1.5px solid #1b1e29; padding: 7px 22px; border-radius: 8px; font-weight: 800; font-size: 14px; cursor: pointer; transition: all 0.2s; }
+.btn-solid { background-color: #1b1e29; color: #ffffff; border: 1.5px solid #1b1e29; padding: 7px 22px; border-radius: 8px; font-weight: 800; font-size: 14px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
 .btn-solid:hover { background-color: var(--dark-color); border-color: var(--dark-color); }
 
-.filter-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 14px; }
+.filter-grid { display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 14px; width: 100%; box-sizing: border-box; }
 .filter-grid.log-grid-3 { grid-template-columns: 1.5fr 1fr 1.2fr; }
-.filter-item { display: flex; flex-direction: column; gap: 6px; }
+.filter-item { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .filter-item label { font-size: 13px; font-weight: 800; color: #475569; }
-.text-input, .select-input, .date-input { padding: 8px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-size: 14px; font-weight: 700; color: #1e293b; background-color: #f8fafc; outline: none; transition: all 0.2s; }
+.text-input, .select-input, .date-input {
+  width: 100%; min-width: 0; box-sizing: border-box;
+  padding: 8px 12px; border: 1.5px solid #cbd5e1; border-radius: 8px;
+  font-size: 14px; font-weight: 700; color: #1e293b; background-color: #f8fafc;
+  outline: none; transition: all 0.2s;
+}
 .text-input:focus, .select-input:focus, .date-input:focus { border-color: var(--dark-color); background-color: #ffffff; }
 
-.time-range-row { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 12px 16px; border-radius: 10px; margin-bottom: 14px; }
-.range-label { font-size: 14px; font-weight: 800; color: #1b1e29; }
-.range-sub { font-size: 13.5px; font-weight: 700; color: #475569; }
-.quick-date-btns { display: flex; gap: 8px; margin-left: auto; }
-.quick-chip { background-color: #ffffff; color: var(--dark-color); border: 1px solid var(--dark-color); padding: 5px 12px; border-radius: 6px; font-size: 12.5px; font-weight: 800; cursor: pointer; transition: all 0.2s; }
+.time-range-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
+  background-color: #f8fafc; border: 1px dashed #cbd5e1;
+  padding: 12px 16px; border-radius: 10px; margin-bottom: 14px;
+  width: 100%; box-sizing: border-box;
+}
+.range-label { font-size: 14px; font-weight: 800; color: #1b1e29; white-space: nowrap; }
+.date-inputs-group { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+.date-inputs-group .date-input { width: 155px; }
+.range-sub { font-size: 13.5px; font-weight: 700; color: #475569; white-space: nowrap; }
+.quick-date-btns { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
+.quick-chip { background-color: #ffffff; color: var(--dark-color); border: 1px solid var(--dark-color); padding: 5px 12px; border-radius: 6px; font-size: 12.5px; font-weight: 800; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
 .quick-chip:hover { background-color: var(--dark-color); color: #ffffff; }
 
-.summary-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px; flex-wrap: wrap; gap: 8px; }
+.summary-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; padding: 0 4px; flex-wrap: wrap; gap: 8px; width: 100%; box-sizing: border-box; }
 .summary-title { font-size: 17px; font-weight: 800; color: #2c3e50; }
 .highlight-num { color: var(--dark-color); font-size: 19px; font-weight: 900; }
 .legend-hint { font-size: 13px; font-weight: 700; color: #475569; }
 
-.table-wrapper { background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04); overflow-x: auto; border: 1px solid #e2e8f0; }
+/* 關鍵修正 2：表格外層鎖定 100% 寬度並開啟底部水平滑動捲軸，與 HistoryView 完全一致 */
+.table-wrapper {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  background-color: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid #e2e8f0;
+}
+
+/* 美化表格底部水平拖曳捲軸，讓使用者在平板與電腦上也能直覺左右拉動 */
+.table-wrapper::-webkit-scrollbar {
+  height: 9px;
+}
+.table-wrapper::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 0 0 16px 16px;
+}
+.table-wrapper::-webkit-scrollbar-thumb {
+  background-color: #94a3b8;
+  border-radius: 6px;
+}
+.table-wrapper::-webkit-scrollbar-thumb:hover {
+  background-color: var(--dark-color);
+}
+
 .tox-table { width: 100%; border-collapse: collapse; text-align: left; }
+.tox-table.approval-table { min-width: 1120px; }
+.tox-table.logs-table { min-width: 920px; }
+
 .tox-table thead tr { background-color: #1b1e29; color: #ffffff; }
 .tox-table th { padding: 13px 12px; font-size: 13px; font-weight: 800; letter-spacing: 0.4px; white-space: nowrap; }
 .tox-table tbody tr { border-bottom: 1px solid #edf2f7; transition: background-color 0.15s; }
@@ -1118,7 +1188,8 @@ onMounted(() => {
 .tox-table tbody tr.pending-row { background-color: #fffaf0; }
 .tox-table td { padding: 13px 12px; vertical-align: middle; font-size: 13.5px; color: #334155; }
 .text-center { text-align: center; }
-.cell-index { font-weight: 800; color: #475569; }
+.cell-index { font-weight: 800; color: #475569; white-space: nowrap; }
+.nowrap-cell { white-space: nowrap; }
 
 /* 強制申請人姓名按鈕與『當前登入』徽章保持單行不換行 */
 .name-cell-wrap { display: inline-flex; align-items: center; gap: 8px; flex-wrap: nowrap; white-space: nowrap; }
@@ -1132,7 +1203,7 @@ onMounted(() => {
 .name-avatar-dot { font-size: 14px; line-height: 1; }
 .name-text { text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; }
 .self-tag { background-color: #1b1e29; color: #f6d32d; font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; white-space: nowrap; flex-shrink: 0; }
-.user-email { font-weight: 900; color: #1b1e29; font-size: 14.5px; }
+.user-email { font-weight: 900; color: #1b1e29; font-size: 14.5px; white-space: nowrap; }
 
 .status-toggle-btn { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: 800; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; white-space: nowrap; }
 .status-toggle-btn.acc-active { background-color: #dcfce7; color: #166534; border-color: #86efac; }
@@ -1182,7 +1253,7 @@ onMounted(() => {
 .delete-user-btn:hover:not(:disabled) { background-color: #ffebee; color: #c62828; border-color: #c62828; transform: scale(1.08); }
 .delete-user-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
-.ip-code { background-color: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 6px; font-size: 13px; font-weight: 700; }
+.ip-code { background-color: #f1f5f9; color: #334155; padding: 3px 8px; border-radius: 6px; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .log-result-badge { display: inline-block; padding: 4px 12px; border-radius: 6px; font-size: 12.5px; font-weight: 800; white-space: nowrap; }
 .log-success { background-color: var(--dark-color); color: #ffffff; }
 .log-guest { background-color: #e0f2f1; color: var(--dark-color); border: 1px solid var(--primary-color); }
@@ -1232,4 +1303,167 @@ onMounted(() => {
 .confirm-delete-btn:hover:not(:disabled) { background-color: #c0392b; }
 .modal-fade-enter-active, .modal-fade-leave-active { transition: opacity 0.2s ease; }
 .modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+/* ================= RWD 響應式設計 (平板 600~1200px 與手機 360~600px) ================= */
+
+/* 平板版 (600px < width <= 1200px) */
+@media screen and (max-width: 1200px) {
+  .account-page {
+    padding: 0 16px;
+  }
+
+  .main-title {
+    font-size: 30px;
+  }
+
+  .filter-grid,
+  .filter-grid.log-grid-3 {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .filter-grid.log-grid-3 .filter-item:first-child {
+    grid-column: span 2;
+  }
+
+  .time-range-row {
+    gap: 10px;
+  }
+
+  .quick-date-btns {
+    margin-left: 0;
+  }
+
+  .summary-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
+
+/* 手機版 (360px < width <= 600px) */
+@media screen and (max-width: 600px) {
+  .account-page {
+    margin: 12px auto 28px auto;
+    padding: 0 12px;
+  }
+
+  .main-title {
+    font-size: 23px;
+    line-height: 1.3;
+    margin-bottom: 12px;
+  }
+
+  .sub-tab-nav {
+    gap: 8px;
+  }
+
+  .action-btn.tab-btn {
+    flex: 1;
+    min-width: 0;
+    justify-content: center;
+    padding: 9px 10px;
+    font-size: 13.5px;
+  }
+
+  .filter-card {
+    padding: 16px 14px;
+    border-radius: 14px;
+  }
+
+  .filter-card-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .filter-btn-group {
+    width: 100%;
+  }
+
+  .btn-outline,
+  .btn-solid {
+    flex: 1;
+    text-align: center;
+    padding: 8px 10px;
+  }
+
+  .filter-grid,
+  .filter-grid.log-grid-3 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .filter-grid.log-grid-3 .filter-item:first-child {
+    grid-column: span 1;
+  }
+
+  /* 手機版登入時間區間：日期與快速按鈕滿版整齊排列 */
+  .time-range-row {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  .date-inputs-group {
+    width: 100%;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 8px;
+  }
+
+  .date-inputs-group .date-input {
+    width: 100%;
+  }
+
+  .quick-date-btns {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 6px;
+  }
+
+  .quick-chip {
+    text-align: center;
+    padding: 6px 8px;
+  }
+
+  .summary-title {
+    font-size: 14.5px;
+    line-height: 1.45;
+  }
+
+  .legend-hint {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .pagination-bar {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 4px;
+  }
+
+  .page-nav-btn,
+  .page-num-btn {
+    padding: 5px 9px;
+    font-size: 13px;
+  }
+
+  /* 手機版申請人詳細資料視窗改為單欄垂直堆疊 */
+  .detail-body,
+  .warn-body {
+    padding: 16px;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .profile-item.full-row {
+    grid-column: span 1;
+  }
+}
 </style>

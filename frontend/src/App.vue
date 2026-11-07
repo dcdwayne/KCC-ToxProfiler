@@ -50,4 +50,15 @@ body {
   box-shadow: 0 0 0 3px rgba(246, 211, 45, 0.5) !important;
   border-radius: 4px;
 }
+
+/* ================= 全站 RWD 基礎防溢位設定  ================= */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
 </style>

@@ -414,4 +414,69 @@ onUnmounted(() => {
   font-weight: bold;
   flex-shrink: 0;
 }
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .report-view {
+    padding: 22px 24px;
+  }
+
+  .current-chapter-title {
+    font-size: 19px;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .browser-tab-bar {
+    padding: 8px 8px 0 8px;
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .folder-tab {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .report-view {
+    padding: 16px 14px;
+  }
+
+  .report-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .current-chapter-title {
+    font-size: 17px;
+  }
+
+  .report-content {
+    font-size: 14.5px;
+    line-height: 1.75;
+  }
+
+  :deep(.sub-sec-title) {
+    font-size: 15.5px;
+    padding: 6px 10px;
+  }
+
+  :deep(.formula-box) {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    overflow-x: auto;
+  }
+
+  .completion-footer-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 14px;
+    font-size: 13.5px;
+  }
+}
 </style>
