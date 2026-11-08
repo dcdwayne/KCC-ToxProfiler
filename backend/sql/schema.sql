@@ -130,7 +130,8 @@ CREATE TABLE public.evaluations (
     expert_report text,
     public_report text,
     created_at timestamp with time zone DEFAULT now(),
-    updated_at timestamp with time zone DEFAULT now()
+    updated_at timestamp with time zone DEFAULT now(),
+    is_selected boolean DEFAULT false NOT NULL
 );
 
 
@@ -408,6 +409,119 @@ ALTER SEQUENCE public.target_chemicals_id_seq OWNED BY public.target_chemicals.i
 
 
 --
+-- Name: user_daily_quotas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_daily_quotas (
+    id integer NOT NULL,
+    user_id integer NOT NULL,
+    usage_date date NOT NULL,
+    question_count integer DEFAULT 0 NOT NULL,
+    prompt_tokens integer DEFAULT 0 NOT NULL,
+    completion_tokens integer DEFAULT 0 NOT NULL,
+    total_tokens integer DEFAULT 0 NOT NULL,
+    last_asked_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: user_daily_quotas_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.user_daily_quotas_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: user_daily_quotas_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.user_daily_quotas_id_seq OWNED BY public.user_daily_quotas.id;
+
+
+--
+-- Name: user_login_logs; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.user_login_logs (
+    id integer NOT NULL,
+    user_id integer,
+    email character varying(120) NOT NULL,
+    name character varying(50),
+    role character varying(30) NOT NULL,
+    login_result character varying(30) NOT NULL,
+    ip_address character varying(60),
+    login_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: user_login_logs_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.user_login_logs_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: user_login_logs_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.user_login_logs_id_seq OWNED BY public.user_login_logs.id;
+
+
+--
+-- Name: users; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.users (
+    id integer NOT NULL,
+    email character varying(120) NOT NULL,
+    password_hash character varying(255) NOT NULL,
+    name character varying(50),
+    organization character varying(100),
+    job_title character varying(80),
+    phone character varying(30),
+    role character varying(30) DEFAULT '會員'::character varying NOT NULL,
+    approval_status character varying(20) DEFAULT 'PENDING'::character varying NOT NULL,
+    account_status character varying(20) DEFAULT 'ACTIVE'::character varying NOT NULL,
+    login_count integer DEFAULT 0 NOT NULL,
+    approved_at timestamp with time zone,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+);
+
+
+--
+-- Name: users_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.users_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: users_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.users_id_seq OWNED BY public.users.id;
+
+
+--
 -- Name: chunks id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -475,6 +589,27 @@ ALTER TABLE ONLY public.papers ALTER COLUMN id SET DEFAULT nextval('public.paper
 --
 
 ALTER TABLE ONLY public.target_chemicals ALTER COLUMN id SET DEFAULT nextval('public.target_chemicals_id_seq'::regclass);
+
+
+--
+-- Name: user_daily_quotas id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_daily_quotas ALTER COLUMN id SET DEFAULT nextval('public.user_daily_quotas_id_seq'::regclass);
+
+
+--
+-- Name: user_login_logs id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_login_logs ALTER COLUMN id SET DEFAULT nextval('public.user_login_logs_id_seq'::regclass);
+
+
+--
+-- Name: users id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_id_seq'::regclass);
 
 
 --
@@ -590,6 +725,46 @@ ALTER TABLE ONLY public.chunks
 
 
 --
+-- Name: user_daily_quotas uq_user_daily_quota; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_daily_quotas
+    ADD CONSTRAINT uq_user_daily_quota UNIQUE (user_id, usage_date);
+
+
+--
+-- Name: user_daily_quotas user_daily_quotas_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_daily_quotas
+    ADD CONSTRAINT user_daily_quotas_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: user_login_logs user_login_logs_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_login_logs
+    ADD CONSTRAINT user_login_logs_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: users users_email_key; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_email_key UNIQUE (email);
+
+
+--
+-- Name: users users_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.users
+    ADD CONSTRAINT users_pkey PRIMARY KEY (id);
+
+
+--
 -- Name: idx_chunks_embedding_hnsw; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -685,6 +860,13 @@ CREATE INDEX ix_evaluations_cas_number ON public.evaluations USING btree (cas_nu
 --
 
 CREATE INDEX ix_evaluations_id ON public.evaluations USING btree (id);
+
+
+--
+-- Name: ix_evaluations_is_selected; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_evaluations_is_selected ON public.evaluations USING btree (is_selected);
 
 
 --
@@ -856,6 +1038,48 @@ CREATE INDEX ix_target_chemicals_id ON public.target_chemicals USING btree (id);
 
 
 --
+-- Name: ix_user_daily_quotas_user_date; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_user_daily_quotas_user_date ON public.user_daily_quotas USING btree (user_id, usage_date);
+
+
+--
+-- Name: ix_user_login_logs_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_user_login_logs_email ON public.user_login_logs USING btree (email);
+
+
+--
+-- Name: ix_user_login_logs_login_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_user_login_logs_login_at ON public.user_login_logs USING btree (login_at);
+
+
+--
+-- Name: ix_users_approval_status; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_users_approval_status ON public.users USING btree (approval_status);
+
+
+--
+-- Name: ix_users_email; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_users_email ON public.users USING btree (email);
+
+
+--
+-- Name: ix_users_role; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX ix_users_role ON public.users USING btree (role);
+
+
+--
 -- Name: chunks chunks_paper_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -901,6 +1125,22 @@ ALTER TABLE ONLY public.paper_authors
 
 ALTER TABLE ONLY public.paper_models
     ADD CONSTRAINT paper_models_paper_id_fkey FOREIGN KEY (paper_id) REFERENCES public.papers(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_daily_quotas user_daily_quotas_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_daily_quotas
+    ADD CONSTRAINT user_daily_quotas_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE;
+
+
+--
+-- Name: user_login_logs user_login_logs_user_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.user_login_logs
+    ADD CONSTRAINT user_login_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE SET NULL;
 
 
 --

@@ -3,7 +3,7 @@
     <!-- 頂部大標題 (已往上調小間距) -->
     <header class="page-header">
       <h2 class="main-title">
-        系統性文獻回顧 <span class="title-en">Systematic Review</span>
+        {{ isEn ? '' : '系統性文獻回顧 ' }}<span class="title-en">Systematic Review</span>
       </h2>
     </header>
 
@@ -12,15 +12,15 @@
       <aside class="sidebar-filter">
         <!-- 說明按鈕與標題完美水平對齊，並具備區塊標題質感 -->
         <div class="section-header-bar">
-          <button class="info-btn" title="點擊查看使用說明" @click="isGuideOpen = true">!</button>
+          <button class="info-btn" :title="t('點擊查看使用說明', 'Click to view user guide')" @click="isGuideOpen = true">!</button>
           <div class="header-text-group">
-            <span class="header-zh">進階篩選</span>
-            <span class="header-en">ADVANCED FILTER</span>
+            <span class="header-zh">{{ t('進階篩選', 'Advanced Filter') }}</span>
+            <span v-if="!isEn" class="header-en">ADVANCED FILTER</span>
           </div>
         </div>
         
         <div class="filter-group">
-          <label>資料來源 Source</label>
+          <label>{{ t('資料來源 Source', 'Study Model (Source)') }}</label>
           <div class="chip-container">
             <button 
               v-for="model in ['cohort', 'in vivo', 'in vitro']" 
@@ -35,36 +35,36 @@
         </div>
         
         <div class="filter-group">
-          <label>適配度 Rerank Score</label>
+          <label>{{ t('適配度 Rerank Score', 'Rerank Score') }}</label>
           <div class="form-row inline-row">
-            <span class="input-text">超過</span>
+            <span class="input-text">{{ t('超過', 'Above') }}</span>
             <input type="number" v-model.number="filters.relevance" class="short-input" placeholder="0">
             <span class="input-text">%</span>
           </div>
         </div>
 
         <div class="filter-group">
-          <label>出版年份 Pub Year</label>
+          <label>{{ t('出版年份 Pub Year', 'Publication Year') }}</label>
           <div class="form-row inline-row">
-            <span class="input-text">從</span>
+            <span class="input-text">{{ t('從', 'From') }}</span>
             <input type="number" v-model.number="filters.startYear" class="short-input" placeholder="YYYY">
-            <span class="input-text">至</span>
+            <span class="input-text">{{ t('至', 'to') }}</span>
             <input type="number" v-model.number="filters.endYear" class="short-input" placeholder="YYYY">
-            <span class="input-text">年</span>
+            <span v-if="!isEn" class="input-text">年</span>
           </div>
         </div>
 
         <div class="filter-group">
-          <label>引用次數 Citation Count</label>
+          <label>{{ t('引用次數 Citation Count', 'Citation Count') }}</label>
           <div class="form-row inline-row">
-            <span class="input-text">超過</span>
+            <span class="input-text">{{ t('超過', 'Above') }}</span>
             <input type="number" v-model.number="filters.minCitations" class="short-input" placeholder="0">
-            <span class="input-text">次</span>
+            <span class="input-text">{{ t('次', 'times') }}</span>
           </div>
         </div>
 
         <div class="filter-group">
-          <label>期刊排名 Journal Rank</label>
+          <label>{{ t('期刊排名 Journal Rank', 'Journal Rank') }}</label>
           <div class="form-row inline-row">
             <button 
               v-for="rank in ['Q1', 'Q2', 'Q3', 'Q4']" 
@@ -84,16 +84,16 @@
             class="action-btn reload-btn" 
             :disabled="isProcessingFilter || !isCurrentKccReady" 
             @click="reloadCurrentKCC"
-            title="將目前選中的 KC 類別恢復為初始召回的所有文獻"
+            :title="t('將目前選中的 KC 類別恢復為初始召回的所有文獻', 'Restore all initially recalled papers for the selected KC category')"
           >
-            重新載入
+            {{ t('重新載入', 'Reset') }}
           </button>
           <button 
             class="action-btn apply-filter" 
             :disabled="isProcessingFilter || !isCurrentKccReady" 
             @click="applyAdvancedFilter"
           >
-            送出篩選
+            {{ t('送出篩選', 'Apply Filter') }}
           </button>
         </div>
       </aside>
@@ -103,16 +103,16 @@
         <!-- 證據池標題與執行統合分析按鈕 -->
         <div class="pool-header">
           <div class="pool-title-banner">
-            <span class="banner-zh">證據池</span>
+            <span class="banner-zh">{{ t('證據池', 'Evidence Pool') }}</span>
             <span class="banner-en">KC EVALUATION EVIDENCE</span>
             <!-- 即時檢索進度提示膠囊 -->
             <span v-if="evalStatus === 'RETRIEVING'" class="retrieving-pill">
               <span class="pulse-dot"></span>
-                正在逐一檢索與重排證據池 ({{ completedKccCount }} / 10)...
+              {{ t(`正在逐一檢索與重排證據池 (${completedKccCount} / 10)...`, `Retrieving & reranking evidence pool (${completedKccCount} / 10)...`) }}
             </span>
             <transition name="badge-pop">
               <span v-if="showAllReadyBanner" class="all-ready-pill">
-                ✨ 10 KCC 證據池全數建置完成！
+                {{ t('✨ 10 KCC 證據池全數建置完成！', '✨ All 10 KCC evidence pools are ready!') }}
               </span>
             </transition>
           </div>
@@ -120,9 +120,14 @@
             class="action-btn submit-analysis" 
             :disabled="isRunningAnalysis || evalStatus === 'RETRIEVING'"
             @click="goToMetaAnalysis"
-            :title="evalStatus === 'RETRIEVING' ? '請等待 10 個 KC 類別全數檢索完畢後即可執行統合分析' : '點擊執行統合分析'"
+            :title="evalStatus === 'RETRIEVING' ? t('請等待 10 個 KC 類別全數檢索完畢後即可執行統合分析', 'Please wait until all 10 KC categories finish retrieval') : t('點擊執行統合分析', 'Click to run Meta-Analysis')"
           >
-            {{ isRunningAnalysis ? '統合算分與生成報告中...' : (evalStatus === 'RETRIEVING' ? `證據池建置中 (${completedKccCount}/10)` : '執行統合分析') }}
+            {{ isRunningAnalysis
+              ? t('統合算分與生成報告中...', 'Scoring & Generating Reports...')
+              : (evalStatus === 'RETRIEVING'
+                ? t(`證據池建置中 (${completedKccCount}/10)`, `Building Pool (${completedKccCount}/10)`)
+                : t('執行統合分析', 'Run Meta-Analysis'))
+            }}
           </button>
         </div>
 
@@ -146,43 +151,48 @@
 
             {{ kcc.name }}<br>
             <span v-if="kcc.is_ready" class="kcc-count count-pop">({{ kcc.count }})</span>
-            <span v-else-if="kcc.is_processing" class="kcc-status-text processing-text">⏳ 檢索重排中...</span>
-            <span v-else class="kcc-status-text pending-text">(待檢索...)</span>
+            <span v-else-if="kcc.is_processing" class="kcc-status-text processing-text">{{ t('⏳ 檢索重排中...', '⏳ Retrieving...') }}</span>
+            <span v-else class="kcc-status-text pending-text">{{ t('(待檢索...)', '(Queued...)') }}</span>
           </button>
         </div>
 
         <!-- 動態文獻列表區 -->
         <div class="list-container" v-if="activeKCC">
           <div class="list-controls">
-            <h4 class="list-title">
-              <span class="list-contents">{{ activeKCC }}</span> 相關文獻結果共 <span class="list-contents">{{ currentPapers.length }}</span> 筆：</h4>
+            <h4 v-if="!isEn" class="list-title">
+              <span class="list-contents">{{ activeKCC }}</span> 相關文獻結果共 <span class="list-contents">{{ currentPapers.length }}</span> 筆：
+            </h4>
+            <h4 v-else class="list-title">
+              <span class="list-contents">{{ activeKCC }}</span> — <span class="list-contents">{{ currentPapers.length }}</span> Matched Papers:
+            </h4>
             <div class="sort-options">
-              <span>排序：</span>
+              <span>{{ t('排序：', 'Sort by:') }}</span>
               <button 
                 class="chip-btn small" 
                 :class="{ active: currentSort === 'source' }"
                 :disabled="!isCurrentKccReady"
                 @click="changeSort('source')"
-              >資料來源</button>
+              >{{ t('資料來源', 'Source') }}</button>
               <button 
                 class="chip-btn small" 
                 :class="{ active: currentSort === 'quartile' }"
                 :disabled="!isCurrentKccReady"
                 @click="changeSort('quartile')"
-              >期刊排名</button>
+              >{{ t('期刊排名', 'Journal Rank') }}</button>
               <button 
                 class="chip-btn small" 
                 :class="{ active: currentSort === 'rerank' }"
                 :disabled="!isCurrentKccReady"
                 @click="changeSort('rerank')"
-              >適配度</button>
+              >{{ t('適配度', 'Rerank Score') }}</button>
             </div>
           </div>
 
           <!-- 當目前選中的 KC 還在背景檢索中時，顯示質感載入骨架提示 -->
           <div v-if="!isCurrentKccReady" class="retrieving-list-box">
             <div class="spinner-ring"></div>
-            <p>正在針對 <strong>{{ activeKCC }}</strong> 執行語意切片向量召回與 Cross-Encoder 重排，完成後將自動呈現文獻...</p>
+            <p v-if="!isEn">正在針對 <strong>{{ activeKCC }}</strong> 執行語意切片向量召回與 Cross-Encoder 重排，完成後將自動呈現文獻...</p>
+            <p v-else>Performing semantic vector recall and Cross-Encoder reranking for <strong>{{ activeKCC }}</strong>. Papers will appear automatically upon completion...</p>
           </div>
 
           <!-- 文獻列表 (一頁顯示 ITEMS_PER_PAGE 篇) -->
@@ -197,7 +207,7 @@
             />
           </transition-group>
           <div v-else class="empty-list-box">
-            目前 {{ activeKCC }} 在此篩選條件下無保留文獻（可點擊左側「重新載入」恢復原始召回文獻）。
+            {{ t(`目前 ${activeKCC} 在此篩選條件下無保留文獻（可點擊左側「重新載入」恢復原始召回文獻）。`, `No papers retained for ${activeKCC} under current filters (Click "Reset" on the left to restore recalled papers).`) }}
           </div>
           
           <!-- 頁碼點擊功能：« 首頁 01 02 03 最後 » (融入系統色系) -->
@@ -207,7 +217,7 @@
               :disabled="currentPage === 1"
               @click="goToPage(1)"
             >
-              « 首頁
+              {{ t('« 首頁', '« First') }}
             </button>
 
             <button 
@@ -225,7 +235,7 @@
               :disabled="currentPage === totalPages"
               @click="goToPage(totalPages)"
             >
-              最後 »
+              {{ t('最後 »', 'Last »') }}
             </button>
           </div>
         </div>
@@ -246,6 +256,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { isEn, t } from '../utils/i18nStore'
 import SystematicReviewList from '../components/SystematicReviewList.vue'
 import PaperDetailModal from '../components/PaperDetailModal.vue'
 import InfoGuideModal from '../components/InfoGuideModal.vue'
@@ -507,7 +518,7 @@ const applyAdvancedFilter = async () => {
     await fetchKccPapers()
   } catch (err) {
     console.error('送出進階篩選失敗:', err)
-    alert('進階篩選執行失敗，請檢查後端連線！')
+    alert(t('進階篩選執行失敗，請檢查後端連線！', 'Advanced filter failed. Please check backend connection!'))
   } finally {
     isProcessingFilter.value = false
   }
@@ -528,7 +539,7 @@ const reloadCurrentKCC = async () => {
     await fetchKccPapers()
   } catch (err) {
     console.error('重新載入失敗:', err)
-    alert('重新載入失敗，請檢查後端連線！')
+    alert(t('重新載入失敗，請檢查後端連線！', 'Reset failed. Please check backend connection!'))
   } finally {
     isProcessingFilter.value = false
   }
@@ -554,7 +565,7 @@ const removePaper = async (paper) => {
     }
   } catch (err) {
     console.error('移除文獻失敗:', err)
-    alert('刪除失敗，請稍後再試！')
+    alert(t('刪除失敗，請稍後再試！', 'Failed to remove paper. Please try again later!'))
   }
 }
 
@@ -573,7 +584,7 @@ const openModal = async (paper) => {
     selectedPaperDetail.value = await res.json()
   } catch (err) {
     console.error('讀取文獻細節失敗:', err)
-    alert('無法讀取文獻詳細內容')
+    alert(t('無法讀取文獻詳細內容', 'Failed to load paper details.'))
     isModalOpen.value = false
   } finally {
     isLoadingModal.value = false
@@ -596,7 +607,7 @@ const goToMetaAnalysis = async () => {
     router.push({ path: '/meta', query: { eval_id: evaluationId.value } })
   } catch (err) {
     console.error('執行統合分析失敗:', err)
-    alert('執行統合分析失敗，請確認後端服務與 GEMINI_API_KEY 設定！')
+    alert(t('執行統合分析失敗，請確認後端服務與 GEMINI_API_KEY 設定！', 'Meta-analysis failed. Please check backend service and GEMINI_API_KEY!'))
   } finally {
     isRunningAnalysis.value = false
   }
@@ -1173,5 +1184,121 @@ onUnmounted(() => {
 .page-nav-btn:disabled {
   color: #b0bec5;
   cursor: not-allowed;
+}
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .review-page {
+    padding: 0 16px;
+  }
+
+  .main-title {
+    font-size: 30px;
+  }
+
+  .content-layout {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .sidebar-filter {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px 20px;
+    padding: 20px;
+  }
+
+  .section-header-bar,
+  .filter-action-row {
+    grid-column: span 2;
+  }
+
+  .evidence-pool-section {
+    width: 100%;
+  }
+
+  .kcc-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .review-page {
+    margin: 12px auto 28px auto;
+    padding: 0 12px;
+  }
+
+  .main-title {
+    font-size: 24px;
+    margin-bottom: 12px;
+  }
+
+  .sidebar-filter {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    border-radius: 18px;
+    gap: 12px;
+  }
+
+  .section-header-bar,
+  .filter-action-row {
+    grid-column: span 1;
+  }
+
+  .pool-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .action-btn.submit-analysis {
+    width: 100%;
+    text-align: center;
+  }
+
+  /* 手機版 10 KCC 按鈕改為 2 欄 x 5 列 */
+  .kcc-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .kcc-btn {
+    font-size: 11px;
+    padding: 8px 6px;
+    word-break: break-word;
+  }
+
+  .list-controls {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .list-title,
+  .list-contents {
+    font-size: 15.5px;
+  }
+
+  .sort-options {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .pagination-bar {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 4px;
+  }
+
+  .page-nav-btn,
+  .page-num-btn {
+    padding: 5px 9px;
+    font-size: 13px;
+  }
 }
 </style>

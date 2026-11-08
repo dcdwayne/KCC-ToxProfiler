@@ -8,36 +8,36 @@
             <span class="auth-icon">{{ isLoginMode ? '🔐' : '📝' }}</span>
             <div>
               <span class="auth-subtitle">
-                {{ isLoginMode ? 'USER AUTHENTICATION / 系統登入' : 'ACCOUNT APPLICATION / 權限註冊申請' }}
+                {{ isLoginMode ? t('USER AUTHENTICATION / 系統登入', 'USER AUTHENTICATION') : t('ACCOUNT APPLICATION / 權限註冊申請', 'ACCOUNT APPLICATION') }}
               </span>
               <h3 class="auth-title">
-                {{ isLoginMode ? '登入 KCC ToxProfiler 評估平臺' : '申請註冊與預選權限角色' }}
+                {{ isLoginMode ? t('登入 KCC ToxProfiler 評估平臺', 'Sign In to KCC ToxProfiler') : t('申請註冊與預選權限角色', 'Register & Request Role Access') }}
               </h3>
             </div>
           </div>
-          <button class="close-btn" @click="closeAuthModal" title="關閉視窗">✕</button>
+          <button class="close-btn" @click="closeAuthModal" :title="t('關閉視窗', 'Close')">✕</button>
         </header>
 
         <!-- ================= 模式 A：登入表單 ================= -->
         <form v-if="isLoginMode" class="auth-body" @submit.prevent="handleLoginSubmit">
           <div class="field-group">
-            <label>帳號（電子信箱 Email）<span class="req">*</span></label>
+            <label>{{ t('帳號（電子信箱 Email）', 'Account (Email Address)') }}<span class="req">*</span></label>
             <input
               type="email"
               v-model.trim="loginForm.email"
-              placeholder="請輸入您的電子信箱，如 user@example.com"
+              :placeholder="t('請輸入您的電子信箱，如 user@example.com', 'Enter your email, e.g., user@example.com')"
               class="auth-input"
               required
             />
           </div>
 
           <div class="field-group">
-            <label>密碼（Password）<span class="req">*</span></label>
+            <label>{{ t('密碼（Password）', 'Password') }}<span class="req">*</span></label>
             <div class="pwd-input-wrapper">
               <input
                 :type="showLoginPwd ? 'text' : 'password'"
                 v-model="loginForm.password"
-                placeholder="請輸入密碼"
+                :placeholder="t('請輸入密碼', 'Enter your password')"
                 class="auth-input pwd-input"
                 required
               />
@@ -46,7 +46,7 @@
                 type="button"
                 class="eye-btn"
                 @click="showLoginPwd = !showLoginPwd"
-                :title="showLoginPwd ? '隱藏密碼' : '顯示密碼'"
+                :title="showLoginPwd ? t('隱藏密碼', 'Hide password') : t('顯示密碼', 'Show password')"
               >
                 <svg v-if="!showLoginPwd" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -61,7 +61,7 @@
           </div>
 
           <button type="submit" class="submit-auth-btn" :disabled="isSubmitting">
-            {{ isSubmitting ? '驗證登入中...' : '確認登入系統' }}
+            {{ isSubmitting ? t('驗證登入中...', 'Signing in...') : t('確認登入系統', 'Sign In') }}
           </button>
 
           <!-- 下方備註區 (1. 訪客進入 / 2. 登入失敗或狀態訊息 / 3. 還沒有註冊嗎？) -->
@@ -75,12 +75,12 @@
             <div class="notes-links-row">
               <!-- 備註 1：以『訪客』身份進入 -->
               <button type="button" class="note-link-btn guest-btn" @click="handleEnterAsGuest">
-                👤 1. 以『訪客』身份進入（僅瀏覽 AI 導覽按鈕）
+                {{ t('👤 1. 以『訪客』身份進入（僅瀏覽 AI 導覽按鈕）', '👤 1. Continue as Guest (Guided AI Buttons Only)') }}
               </button>
 
               <!-- 備註 3：還沒有註冊嗎？ -->
               <button type="button" class="note-link-btn switch-btn" @click="switchMode('register')">
-                ✨ 還沒有註冊嗎？點此申請帳號 →
+                {{ t('✨ 還沒有註冊嗎？點此申請帳號 →', '✨ No account yet? Register here →') }}
               </button>
             </div>
           </div>
@@ -88,10 +88,10 @@
 
         <!-- ================= 模式 B：註冊申請表單 ================= -->
         <form v-else class="auth-body" @submit.prevent="handleRegisterSubmit">
-          <!-- 必填區塊 -->
+          <!-- 必填區塊 (2x2 對齊)：申請帳號、真實姓名、聯絡電話、設定密碼 -->
           <div class="form-grid-2">
             <div class="field-group">
-              <label>申請帳號（電子信箱）<span class="req">*</span></label>
+              <label>{{ t('申請帳號（電子信箱）', 'Account (Email)') }}<span class="req">*</span></label>
               <input
                 type="email"
                 v-model.trim="regForm.email"
@@ -102,12 +102,36 @@
             </div>
 
             <div class="field-group">
-              <label>設定密碼（至少 6 碼）<span class="req">*</span></label>
+              <label>{{ t('申請人真實姓名（Name）', 'Full Name') }}<span class="req">*</span></label>
+              <input
+                type="text"
+                v-model.trim="regForm.name"
+                :placeholder="t('請輸入您的真實姓名（必填）', 'Enter your full name (Required)')"
+                maxlength="30"
+                class="auth-input"
+                required
+              />
+            </div>
+
+            <div class="field-group">
+              <label>{{ t('聯絡電話（Phone）', 'Phone Number') }}<span class="req">*</span></label>
+              <input
+                type="tel"
+                v-model.trim="regForm.phone"
+                :placeholder="t('例如：0912-345678 或市話（必填）', 'e.g., +886-912-345678 (Required)')"
+                maxlength="20"
+                class="auth-input"
+                required
+              />
+            </div>
+
+            <div class="field-group">
+              <label>{{ t('設定密碼（至少 6 碼）', 'Password (Min 6 chars)') }}<span class="req">*</span></label>
               <div class="pwd-input-wrapper">
                 <input
                   :type="showRegPwd ? 'text' : 'password'"
                   v-model="regForm.password"
-                  placeholder="請輸入 6 碼以上密碼"
+                  :placeholder="t('請輸入 6 碼以上密碼', 'At least 6 characters')"
                   class="auth-input pwd-input"
                   required
                 />
@@ -115,7 +139,7 @@
                   type="button"
                   class="eye-btn"
                   @click="showRegPwd = !showRegPwd"
-                  :title="showRegPwd ? '隱藏密碼' : '顯示密碼'"
+                  :title="showRegPwd ? t('隱藏密碼', 'Hide password') : t('顯示密碼', 'Show password')"
                 >
                   <svg v-if="!showRegPwd" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -132,7 +156,7 @@
 
           <!-- 點選預申請的權限角色 -->
           <div class="field-group">
-            <label>點選預申請之權限角色 <span class="req">*</span></label>
+            <label>{{ t('點選預申請之權限角色', 'Select Requested Role') }} <span class="req">*</span></label>
             <div class="role-selector-grid">
               <button
                 type="button"
@@ -142,9 +166,11 @@
               >
                 <div class="role-card-head">
                   <span class="role-dot"></span>
-                  <strong>會員 (Member)</strong>
+                  <strong>{{ t('會員 (Member)', 'Member') }}</strong>
                 </div>
-                <span class="role-desc">可使用 Dr. Manhattan 智能助理按鈕導覽與自由輸入提問功能</span>
+                <span class="role-desc">
+                  {{ t('可使用 Dr. Manhattan 智能助理按鈕導覽與自由輸入提問功能', 'Access Dr. Manhattan AI guided topics & free-text Q&A') }}
+                </span>
               </button>
 
               <button
@@ -155,66 +181,46 @@
               >
                 <div class="role-card-head">
                   <span class="role-dot"></span>
-                  <strong>專家 (Expert)</strong>
+                  <strong>{{ t('專家 (Expert)', 'Expert') }}</strong>
                 </div>
-                <span class="role-desc">開放完整文獻檢索、10 KCC 系統回顧、統合分析與歷史紀錄管理</span>
+                <span class="role-desc">
+                  {{ t('開放完整文獻檢索、10 KCC 系統回顧、統合分析與歷史紀錄管理', 'Full access to Literature Retrieval, 10 KCC Review, Meta-Analysis & History') }}
+                </span>
               </button>
             </div>
           </div>
 
-          <!-- 選填基本資料區塊 (單位、姓名、職稱、電話 預設非必填) -->
+          <!-- 選填基本資料區塊 (服務單位、職稱 非必填) -->
           <div class="optional-divider">
-            <span>申請人基本資料（選填 Optional）</span>
+            <span>{{ t('服務單位與職稱資訊（選填 Optional）', 'Organization & Job Title (Optional)') }}</span>
           </div>
 
           <div class="form-grid-2">
             <div class="field-group">
-              <label>服務單位（Organization）</label>
+              <label>{{ t('服務單位（Organization）', 'Organization') }}</label>
               <input
                 type="text"
                 v-model.trim="regForm.organization"
-                placeholder="例如：國家環境研究院 / 大學系所"
+                :placeholder="t('例如：國家環境研究院 / 大學系所', 'e.g., Research Institute / University')"
                 maxlength="50"
                 class="auth-input"
               />
             </div>
 
             <div class="field-group">
-              <label>真實姓名（Name）</label>
-              <input
-                type="text"
-                v-model.trim="regForm.name"
-                placeholder="請輸入您的姓名"
-                maxlength="30"
-                class="auth-input"
-              />
-            </div>
-
-            <div class="field-group">
-              <label>職稱（Job Title）</label>
+              <label>{{ t('職稱（Job Title）', 'Job Title') }}</label>
               <input
                 type="text"
                 v-model.trim="regForm.job_title"
-                placeholder="例如：研究員 / 毒理學分析師"
+                :placeholder="t('例如：研究員 / 毒理學分析師', 'e.g., Researcher / Toxicologist')"
                 maxlength="40"
-                class="auth-input"
-              />
-            </div>
-
-            <div class="field-group">
-              <label>聯絡電話（Phone）</label>
-              <input
-                type="tel"
-                v-model.trim="regForm.phone"
-                placeholder="例如：02-23456789 或手機"
-                maxlength="20"
                 class="auth-input"
               />
             </div>
           </div>
 
           <button type="submit" class="submit-auth-btn" :disabled="isSubmitting">
-            {{ isSubmitting ? '正在送出申請...' : '送出註冊與權限申請' }}
+            {{ isSubmitting ? t('正在送出申請...', 'Submitting...') : t('送出註冊與權限申請', 'Submit Registration') }}
           </button>
 
           <!-- 底部訊息與切換回登入 -->
@@ -226,10 +232,10 @@
 
             <div class="notes-links-row">
               <button type="button" class="note-link-btn guest-btn" @click="handleEnterAsGuest">
-                👤 先以『訪客』身份進入體驗
+                {{ t('👤 先以『訪客』身份進入體驗', '👤 Continue as Guest first') }}
               </button>
               <button type="button" class="note-link-btn switch-btn" @click="switchMode('login')">
-                ← 已經有帳號了？返回登入頁面
+                {{ t('← 已經有帳號了？返回登入頁面', '← Already have an account? Sign In') }}
               </button>
             </div>
           </div>
@@ -243,6 +249,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { authState, closeAuthModal } from '../utils/authStore'
+import { t } from '../utils/i18nStore'
 
 const router = useRouter()
 
@@ -259,7 +266,7 @@ const showRegPwd = ref(false)
 const isSubmitting = ref(false)
 
 const feedbackMsg = ref('')
-const feedbackType = ref('error') // 'error' | 'success'
+const feedbackType = ref('error')
 
 const loginForm = reactive({
   email: '',
@@ -268,12 +275,12 @@ const loginForm = reactive({
 
 const regForm = reactive({
   email: '',
+  name: '',
+  phone: '',
   password: '',
   role: '會員',
   organization: '',
-  name: '',
-  job_title: '',
-  phone: ''
+  job_title: ''
 })
 
 watch(
@@ -297,7 +304,10 @@ const handleLoginSubmit = async () => {
   feedbackMsg.value = ''
   if (!EMAIL_PATTERN.test(loginForm.email)) {
     feedbackType.value = 'error'
-    feedbackMsg.value = '帳號格式不正確：請輸入有效的電子信箱（如 example@domain.com）！'
+    feedbackMsg.value = t(
+      '帳號格式不正確：請輸入有效的電子信箱（如 example@domain.com）！',
+      'Invalid email format: Please enter a valid email address (e.g., example@domain.com)!'
+    )
     return
   }
 
@@ -312,7 +322,7 @@ const handleLoginSubmit = async () => {
     const data = await res.json()
     if (!res.ok) {
       feedbackType.value = 'error'
-      feedbackMsg.value = data.detail || '登入失敗，請檢查帳號與密碼。'
+      feedbackMsg.value = data.detail || t('登入失敗，請檢查帳號與密碼。', 'Sign-in failed. Please check your credentials.')
       return
     }
 
@@ -330,7 +340,7 @@ const handleLoginSubmit = async () => {
     }
   } catch (err) {
     feedbackType.value = 'error'
-    feedbackMsg.value = '無法連線至後端驗證伺服器，請稍後再試。'
+    feedbackMsg.value = t('無法連線至後端驗證伺服器，請稍後再試。', 'Cannot connect to authentication server. Please try again later.')
   } finally {
     isSubmitting.value = false
   }
@@ -364,12 +374,25 @@ const handleRegisterSubmit = async () => {
   feedbackMsg.value = ''
   if (!EMAIL_PATTERN.test(regForm.email)) {
     feedbackType.value = 'error'
-    feedbackMsg.value = '申請帳號必須為有效的電子信箱格式（如 name@domain.com）！'
+    feedbackMsg.value = t(
+      '申請帳號必須為有效的電子信箱格式（如 name@domain.com）！',
+      'Account must be a valid email address (e.g., name@domain.com)!'
+    )
+    return
+  }
+  if (!regForm.name.trim()) {
+    feedbackType.value = 'error'
+    feedbackMsg.value = t('請填寫申請人真實姓名（必填）！', 'Please enter your full name (Required)!')
+    return
+  }
+  if (!regForm.phone.trim()) {
+    feedbackType.value = 'error'
+    feedbackMsg.value = t('請填寫聯絡電話（必填）！', 'Please enter your phone number (Required)!')
     return
   }
   if (regForm.password.length < 6) {
     feedbackType.value = 'error'
-    feedbackMsg.value = '密碼長度至少需 6 個字元以上！'
+    feedbackMsg.value = t('密碼長度至少需 6 個字元以上！', 'Password must be at least 6 characters long!')
     return
   }
 
@@ -383,7 +406,7 @@ const handleRegisterSubmit = async () => {
     const data = await res.json()
     if (!res.ok) {
       feedbackType.value = 'error'
-      feedbackMsg.value = data.detail || '註冊申請失敗，請檢查輸入欄位。'
+      feedbackMsg.value = data.detail || t('註冊申請失敗，請檢查輸入欄位。', 'Registration failed. Please check your inputs.')
       return
     }
 
@@ -396,7 +419,7 @@ const handleRegisterSubmit = async () => {
     feedbackMsg.value = data.message
   } catch (err) {
     feedbackType.value = 'error'
-    feedbackMsg.value = '伺服器連線異常，請稍後再試。'
+    feedbackMsg.value = t('伺服器連線異常，請稍後再試。', 'Server connection error. Please try again later.')
   } finally {
     isSubmitting.value = false
   }
@@ -419,7 +442,7 @@ const handleRegisterSubmit = async () => {
 .auth-modal {
   background-color: #ffffff;
   width: 95%;
-  max-width: 560px;
+  max-width: 580px;
   max-height: 90vh;
   border-radius: 18px;
   box-shadow: 0 20px 45px rgba(0, 0, 0, 0.28);
@@ -493,7 +516,7 @@ const handleRegisterSubmit = async () => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 15px;
 }
 
 .form-grid-2 {
@@ -525,7 +548,7 @@ const handleRegisterSubmit = async () => {
   padding: 10px 14px;
   border: 1.5px solid #cbd5e1;
   border-radius: 10px;
-  font-size: 14.5px;
+  font-size: 14px;
   font-weight: 600;
   color: #1e293b;
   outline: none;
@@ -742,5 +765,47 @@ const handleRegisterSubmit = async () => {
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
+}
+
+/* ================= RWD 響應式設計 ================= */
+
+@media screen and (max-width: 600px) {
+  .auth-overlay {
+    padding: 10px;
+  }
+
+  .auth-modal {
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 14px;
+  }
+
+  .auth-header {
+    padding: 14px 16px;
+  }
+
+  .auth-title {
+    font-size: 16.5px;
+  }
+
+  .auth-body {
+    padding: 16px 16px;
+    gap: 12px;
+  }
+
+  .form-grid-2,
+  .role-selector-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .notes-links-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .note-link-btn {
+    text-align: center;
+  }
 }
 </style>

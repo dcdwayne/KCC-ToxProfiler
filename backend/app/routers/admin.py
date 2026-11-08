@@ -308,3 +308,41 @@ def list_user_login_logs(
         "total": len(items),
         "logs": items
     }
+
+
+# =====================================================================
+# API 5: 永久刪除申請人 / 使用者帳號 (DELETE /api/admin/users/{user_id})
+# =====================================================================
+@router.delete("/users/{user_id}")
+def delete_user_account(
+    user_id: int,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_system_admin)
+):
+    target = db.query(User).filter_by(id=user_id).first()
+    if not target:
+        raise HTTPException(status_code=404, detail=f"找不到使用者 ID: {user_id}")
+
+    # 安全防呆：禁止刪除目前登入的系統管理者自己
+    if target.id == current_admin.id:
+        raise HTTPException(status_code=400, detail="安全限制：無法刪除您目前正在使用的系統管理者帳號！")
+
+    deleted_email = target.email
+    deleted_name = target.name
+
+    # 1. 將登入稽核表 (user_login_logs) 的 user_id 設為 None，保留歷史安全稽核軌跡
+    db.query(UserLoginLog).filter(UserLoginLog.user_id == user_id).update(
+        {UserLoginLog.user_id: None}, synchronize_session=False
+    )
+
+    # 2. 刪除每日額度追蹤紀錄 (user_daily_quotas)
+    db.query(UserDailyQuota).filter(UserDailyQuota.user_id == user_id).delete(synchronize_session=False)
+
+    # 3. 刪除使用者帳號本體 (users)
+    db.delete(target)
+    db.commit()
+
+    return {
+        "message": f"已永久刪除申請人「{deleted_name or deleted_email}」之帳號資料",
+        "deleted_user_id": user_id
+    }

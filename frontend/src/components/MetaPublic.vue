@@ -10,7 +10,7 @@
         @click="selectSubTab(idx)"
       >
         <span class="tab-dot"></span>
-        <span class="tab-title">{{ tab.tab_label }}</span>
+        <span class="tab-title">{{ formatPublicTabLabel(tab.tab_label, idx) }}</span>
       </button>
     </div>
 
@@ -18,19 +18,23 @@
     <div class="report-view">
       <div class="report-header">
         <div class="header-left-meta">
-          <span class="section-subtitle">PUBLIC HEALTH RISK SUMMARY / 民眾科普版評估報告</span>
-          <h3 class="current-chapter-title" v-if="currentTab">{{ currentTab.full_title }}</h3>
+          <span class="section-subtitle">
+            {{ t('PUBLIC HEALTH RISK SUMMARY / 民眾科普版評估報告', 'PUBLIC HEALTH RISK SUMMARY') }}
+          </span>
+          <h3 class="current-chapter-title" v-if="currentTab">
+            {{ formatPublicFullTitle(currentTab.full_title, activeSubTabIdx) }}
+          </h3>
         </div>
 
         <div class="header-right-actions">
           <!-- 若正在打字中，提供一鍵立即顯示全文按鈕 -->
           <button v-if="isTyping" class="skip-btn" @click="finishTypingImmediately">
-            ⚡ 立即顯示全文
+            {{ t('⚡ 立即顯示全文', '⚡ Show Full Text') }}
           </button>
           <!-- 打字結束後的完成特效徽章 -->
           <div v-if="isFinished" class="completion-badge">
             <span class="sparkle-icon">✨</span>
-            <span>科普風險報告生成完畢</span>
+            <span>{{ t('科普風險報告生成完畢', 'Public Health Summary Ready') }}</span>
           </div>
         </div>
       </div>
@@ -46,8 +50,9 @@
         <div v-if="isFinished" class="completion-footer-banner">
           <div class="footer-check">✓</div>
           <div class="footer-text">
-            <strong>本節結論已完整呈現：</strong>
-            <span>{{ chemicalName }} 總體危害評級為 <strong>{{ hazardScore }} / 100</strong>，可點擊上方主題標籤頁切換閱讀其他章節。</span>
+            <strong>{{ t('本節結論已完整呈現：', 'Section Summary Complete: ') }}</strong>
+            <span v-if="!isEn">{{ chemicalName }} 總體危害評級為 <strong>{{ hazardScore }} / 100</strong>，可點擊上方主題標籤頁切換閱讀其他章節。</span>
+            <span v-else>Overall Hazard Score for {{ chemicalName }} is <strong>{{ hazardScore }} / 100</strong>. Click the tabs above to read other chapters.</span>
           </div>
         </div>
       </transition>
@@ -57,6 +62,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { isEn, t } from '../utils/i18nStore'
 
 const props = defineProps({
   tabs: {
@@ -84,6 +90,33 @@ let typingTimer = null
 const currentTab = computed(() => {
   return props.tabs[activeSubTabIdx.value] || null
 })
+
+// 英文模式下自動轉換民眾版 3 大標籤頁名稱
+const PUBLIC_TAB_LABELS_EN = [
+  '1. Chemical Overview',
+  '2. Exposure Routes',
+  '3. KCC & Hazard Score'
+]
+
+const PUBLIC_FULL_TITLES_EN = [
+  '1. Chemical Overview & Everyday Sources',
+  '2. Major Exposure Routes & Risk Reduction',
+  '3. Key Characteristics (KCC) Conclusions & Hazard Score'
+]
+
+const formatPublicTabLabel = (zhLabel, idx) => {
+  if (isEn.value && PUBLIC_TAB_LABELS_EN[idx]) {
+    return PUBLIC_TAB_LABELS_EN[idx]
+  }
+  return zhLabel
+}
+
+const formatPublicFullTitle = (zhTitle, idx) => {
+  if (isEn.value && PUBLIC_FULL_TITLES_EN[idx]) {
+    return PUBLIC_FULL_TITLES_EN[idx]
+  }
+  return zhTitle
+}
 
 // 智慧型 HTML 打字機：遇到 HTML 標籤 (<...>) 時瞬間跳過標籤本體，只對可見文字做逐字打字
 const startTypewriter = (fullHtml) => {
@@ -380,5 +413,70 @@ onUnmounted(() => {
   justify-content: center;
   font-weight: bold;
   flex-shrink: 0;
+}
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .report-view {
+    padding: 22px 24px;
+  }
+
+  .current-chapter-title {
+    font-size: 19px;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .browser-tab-bar {
+    padding: 8px 8px 0 8px;
+    gap: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .folder-tab {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
+
+  .report-view {
+    padding: 16px 14px;
+  }
+
+  .report-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .current-chapter-title {
+    font-size: 17px;
+  }
+
+  .report-content {
+    font-size: 14.5px;
+    line-height: 1.75;
+  }
+
+  :deep(.sub-sec-title) {
+    font-size: 15.5px;
+    padding: 6px 10px;
+  }
+
+  :deep(.formula-box) {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    overflow-x: auto;
+  }
+
+  .completion-footer-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 12px 14px;
+    font-size: 13.5px;
+  }
 }
 </style>

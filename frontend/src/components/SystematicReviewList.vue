@@ -2,7 +2,7 @@
   <div class="paper-row">
     <div class="row-left">
       <span class="index">{{ index }}.</span>
-      <h5 class="paper-title" @click="$emit('view-details', paper)" title="點擊查看完整標題與摘要細節">
+      <h5 class="paper-title" @click="$emit('view-details', paper)" :title="t('點擊查看完整標題與摘要細節', 'Click to view full title and abstract details')">
         {{ paper.title }}
       </h5>
       <!-- 資料來源視覺化標注框框 (白字) -->
@@ -19,11 +19,11 @@
 
       <!-- 適配度百分比 -->
       <span class="rerank-text">
-        適配度 <strong>{{ paper.rerank_pct }}%</strong>
+        {{ t('適配度', 'Rerank') }} <strong>{{ paper.rerank_pct }}%</strong>
       </span>
 
       <!-- 刪除按鈕 -->
-      <button class="delete-btn" @click="$emit('remove-paper', paper)" title="從 Evidence Pool 中移除">
+      <button class="delete-btn" @click="$emit('remove-paper', paper)" :title="t('從 Evidence Pool 中移除', 'Remove from Evidence Pool')">
         X
       </button>
     </div>
@@ -31,6 +31,8 @@
 </template>
 
 <script setup>
+import { t } from '../utils/i18nStore'
+
 defineProps({
   index: Number,
   paper: Object
@@ -181,7 +183,7 @@ const getRankClass = (quartile) => {
 .rerank-text {
   color: #444;
   font-size: 14px;
-  min-width: 88px;
+  min-width: 96px;
   text-align: right;
 }
 
@@ -208,5 +210,54 @@ const getRankClass = (quartile) => {
   background-color: #ffebee;
   color: #c62828;
   border-color: #c62828;
+}
+
+/* ================= RWD 響應式設計 ================= */
+
+/* 平板版 (600px ~ 1200px) */
+@media screen and (max-width: 1200px) {
+  .paper-title {
+    max-width: 340px;
+  }
+}
+
+/* 手機版 (360px ~ 600px) */
+@media screen and (max-width: 600px) {
+  .paper-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px 14px;
+  }
+
+  .row-left {
+    align-items: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .paper-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    max-width: 100%;
+    font-size: 14.5px;
+    line-height: 1.4;
+    flex: 1;
+  }
+
+  .row-right {
+    width: 100%;
+    justify-content: space-between;
+    padding-top: 8px;
+    border-top: 1px dashed #e2e8f0;
+    gap: 8px;
+  }
+
+  .rerank-text {
+    min-width: auto;
+    font-size: 13px;
+  }
 }
 </style>
