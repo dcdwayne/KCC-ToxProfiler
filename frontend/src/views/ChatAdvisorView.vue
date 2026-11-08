@@ -196,7 +196,7 @@
               <div>
                 <h4>{{ t('今日 AI 問答額度追蹤 (Quota Tracking)', 'Daily AI Quota Tracking') }}</h4>
                 <span class="qp-sub">
-                  {{ t('統計日期（台灣時區）：', 'Date (UTC+8): ') }}{{ quotaInfo.date_tw || t('今日', 'Today') }}
+                  {{ t('統計日期 (UTC+8)：', 'Date (UTC+8): ') }}{{ quotaInfo.date_tw || t('今日', 'Today') }}
                 </span>
               </div>
             </div>
