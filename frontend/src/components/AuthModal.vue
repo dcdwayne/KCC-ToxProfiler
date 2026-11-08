@@ -75,7 +75,7 @@
             <div class="notes-links-row">
               <!-- 備註 1：以『訪客』身份進入 -->
               <button type="button" class="note-link-btn guest-btn" @click="handleEnterAsGuest">
-                {{ t('👤 1. 以『訪客』身份進入（僅瀏覽 AI 導覽按鈕）', '👤 1. Continue as Guest (Guided AI Buttons Only)') }}
+                {{ t('👤 以『訪客』身份進入', '👤 Continue as Guest') }}
               </button>
 
               <!-- 備註 3：還沒有註冊嗎？ -->

@@ -13,3 +13,6 @@ backend/data/*.csv
 # 忽略生成的 ER 圖檔與程式碼
 backend/gen_er.py
 backend/er-diagram.png
+
+# 忽略 ssl 憑證與金鑰
+frontend/ssl/*
