@@ -2,7 +2,7 @@
 import re
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -199,9 +199,15 @@ def _format_chat_reply_to_html(md_text: str, pmid_map: dict, is_expert: bool = F
                 return full_str
             badges = []
             for pid in pmids:
-                apa_label = pmid_map.get(pid, f"PMID: {pid}")
+                info = pmid_map.get(pid)
+                if isinstance(info, dict):
+                    apa_label = info.get("apa_text", f"PMID: {pid}")
+                    tooltip_text = f"PMID: {pid}" + (f" ({info['journal']})" if info.get("journal") else "")
+                else:
+                    apa_label = info or f"PMID: {pid}"
+                    tooltip_text = f"PMID: {pid}"
                 badges.append(
-                    f'<span class="apa-citation" data-pmid="PMID: {pid}">({apa_label})</span>'
+                    f'<span class="apa-citation" data-pmid="{tooltip_text}">({apa_label})</span>'
                 )
             return '<span class="apa-citation-group">' + "; ".join(badges) + '</span>'
 
@@ -302,11 +308,11 @@ def get_my_chat_quota(request: Request, db: Session = Depends(get_db)):
 
 
 # =====================================================================
-# API 1: 取得目前歷史紀錄中已勾選 (is_selected = True) 的化學物質清單
+# API 1: 取得目前歷史紀錄中已勾選 (is_selected = True) 且符合當前語系的化學物質清單
 # =====================================================================
 @router.get("/chemicals")
-def list_selected_chemicals():
-    chemicals = get_selected_chemicals()
+def list_selected_chemicals(lang: str = Query("zh", description="介面語言: zh | en")):
+    chemicals = get_selected_chemicals(lang=lang)
     return {
         "count": len(chemicals),
         "chemicals": chemicals
@@ -314,7 +320,7 @@ def list_selected_chemicals():
 
 
 # =====================================================================
-# API 2: 選定角色與化學物質後，載入評估摘要與對應的主題卡片清單
+# API 2: 選定角色與化學物質後，載入對應語系的評估摘要與主題卡片清單
 # =====================================================================
 class SelectChemicalRequest(BaseModel):
     chemical_query: str
@@ -325,7 +331,7 @@ class SelectChemicalRequest(BaseModel):
 @router.post("/select-chemical")
 def select_chemical_for_chat(payload: SelectChemicalRequest):
     normalized_role = "專家" if payload.role in ("專家", "Expert") else "一般民眾"
-    data = get_chemical_evaluation_data(payload.chemical_query, normalized_role)
+    data = get_chemical_evaluation_data(payload.chemical_query, normalized_role, lang=payload.lang)
     if not data.get("found"):
         raise HTTPException(status_code=404, detail=data.get("message", "找不到該化學物質的勾選紀錄"))
 
@@ -337,6 +343,7 @@ def select_chemical_for_chat(payload: SelectChemicalRequest):
         "hazard_score": data["hazard_score"],
         "risk_level": data["risk_level"],
         "role": normalized_role,
+        "report_lang": data.get("report_lang", payload.lang),
         "available_topics": _get_localized_topics(normalized_role, payload.lang)
     }
 
@@ -359,12 +366,12 @@ def ask_dr_manhattan(payload: ChatAskRequest, request: Request, db: Session = De
     normalized_role = "專家" if payload.role in ("專家", "Expert") else "一般民眾"
     is_en = (payload.lang == "en")
 
-    mcp_data = get_chemical_evaluation_data(payload.chemical_query, normalized_role)
+    mcp_data = get_chemical_evaluation_data(payload.chemical_query, normalized_role, lang=payload.lang)
     if not mcp_data.get("found"):
         msg = (
-            f"<p class='report-para'>Sorry, no selected evaluation record was found for '{payload.chemical_query}'. Please select one in the History page first.</p>"
+            f"<p class='report-para'>Sorry, no selected English evaluation record was found for '{payload.chemical_query}'. Please generate and bind an English record in the History page first.</p>"
             if is_en else
-            f"<p class='report-para'>抱歉，目前知識庫中尚未勾選「{payload.chemical_query}」的評估紀錄，請先至「歷史紀錄」頁面勾選。</p>"
+            f"<p class='report-para'>抱歉，目前知識庫中尚未勾選「{payload.chemical_query}」的中文版評估紀錄，請先至「歷史紀錄」頁面勾選。</p>"
         )
         return {
             "reply_html": msg,
@@ -379,7 +386,7 @@ def ask_dr_manhattan(payload: ChatAskRequest, request: Request, db: Session = De
 
     # 1. 若點擊「預設主題按鈕」：0 秒切分章節回傳，完全不消耗任何額度與 Token！
     if payload.is_topic_click and payload.topic_index is not None:
-        tabs = _split_markdown_into_tabs(report_raw, pmid_map, is_expert=is_expert)
+        tabs = _split_markdown_into_tabs(report_raw, pmid_map, is_expert=is_expert, lang=payload.lang)
         if 0 <= payload.topic_index < len(tabs):
             chosen_tab = tabs[payload.topic_index]
             chapter_title = localized_topics[payload.topic_index] if payload.topic_index < len(localized_topics) else chosen_tab["full_title"]

@@ -4,7 +4,7 @@
     <div class="nav-left" @click="goHome">
       <img src="/dr-manhattan-logo.png" alt="Logo" class="logo-img" />
       <h1 class="product-title">
-        {{ t('KCC ToxProfiler 致癌物關鍵特徵歸納平臺', 'KCC ToxProfiler - Carcinogen Hazard Identification Platform') }}
+        {{ t('KCC ToxProfiler 致癌物關鍵特徵歸納平臺', 'KCC ToxProfiler') }}
       </h1>
     </div>
     
@@ -191,6 +191,7 @@ onMounted(() => {
   height: 40px;
   width: auto;
   object-fit: contain;
+  border-radius: 8px;
 }
 
 .product-title {

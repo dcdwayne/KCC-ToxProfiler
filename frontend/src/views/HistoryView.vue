@@ -150,10 +150,13 @@
                 {{ (currentPage - 1) * ITEMS_PER_PAGE + idx + 1 }}.
               </td>
 
-              <!-- 3. 化學物質名稱與 CAS 編號 -->
+              <!-- 3. 化學物質名稱與 CAS 編號 (新增報告語系 ZH / EN 標籤) -->
               <td>
                 <div class="chem-main-info">
                   <span class="chem-name">{{ rec.chemical_name }}</span>
+                  <span class="lang-record-badge" :class="rec.report_lang === 'en' ? 'lang-en' : 'lang-zh'">
+                    {{ rec.report_lang === 'en' ? 'EN 英文版' : 'ZH 中文版' }}
+                  </span>
                 </div>
                 <div class="chem-sub-info">
                   <span>CAS RN: <code>{{ rec.cas_number || '--' }}</code></span>
@@ -517,9 +520,10 @@ const toggleSort = async (sortKey) => {
   await fetchHistoryRecords()
 }
 
-// --- API 2: 勾選/取消勾選紀錄 (同一個化學物質僅限勾選一筆) ---
+// --- API 2: 勾選/取消勾選紀錄 (同一個化學物質在「同一語系 (zh/en)」下各限勾選一筆) ---
 const handleToggleSelect = async (record) => {
   const newSelectedState = !record.is_selected
+  const targetLang = record.report_lang || 'zh'
   try {
     const res = await fetch(`${API_BASE_URL}/history/${record.id}/select`, {
       method: 'PUT',
@@ -528,11 +532,12 @@ const handleToggleSelect = async (record) => {
     })
     if (!res.ok) throw new Error('更新勾選狀態失敗')
 
-    // 前端即時同步：若勾選為 True，將同一個 cas_number 的其他紀錄自動取消勾選
+    // 前端即時同步：若勾選為 True，僅將「同一個 cas_number 且同一個語系 (report_lang)」的其他紀錄取消勾選
     records.value.forEach(item => {
+      const itemLang = item.report_lang || 'zh'
       if (item.id === record.id) {
         item.is_selected = newSelectedState
-      } else if (newSelectedState && item.cas_number === record.cas_number) {
+      } else if (newSelectedState && item.cas_number === record.cas_number && itemLang === targetLang) {
         item.is_selected = false
       }
     })
@@ -749,7 +754,33 @@ onMounted(() => {
 .mcp-tag { font-size: 12px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background-color: #f1f5f9; color: #94a3b8; }
 .mcp-tag.active { background-color: #ccfbf1; color: #0f766e; border: 1px solid #5eead4; }
 
-.chem-main-info { margin-bottom: 3px; }
+.chem-main-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.lang-record-badge {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.lang-record-badge.lang-zh {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+}
+
+.lang-record-badge.lang-en {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
 .chem-name { font-size: 16px; font-weight: 900; color: #1b1e29; letter-spacing: 0.4px; }
 .chem-sub-info { font-size: 12px; color: #64748b; font-weight: 600; }
 .chem-sub-info code { background-color: #f1f5f9; color: #334155; padding: 1px 5px; border-radius: 4px; font-weight: 700; }

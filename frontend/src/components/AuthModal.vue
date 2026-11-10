@@ -102,30 +102,6 @@
             </div>
 
             <div class="field-group">
-              <label>{{ t('申請人真實姓名（Name）', 'Full Name') }}<span class="req">*</span></label>
-              <input
-                type="text"
-                v-model.trim="regForm.name"
-                :placeholder="t('請輸入您的真實姓名（必填）', 'Enter your full name (Required)')"
-                maxlength="30"
-                class="auth-input"
-                required
-              />
-            </div>
-
-            <div class="field-group">
-              <label>{{ t('聯絡電話（Phone）', 'Phone Number') }}<span class="req">*</span></label>
-              <input
-                type="tel"
-                v-model.trim="regForm.phone"
-                :placeholder="t('例如：0912-345678 或市話（必填）', 'e.g., +886-912-345678 (Required)')"
-                maxlength="20"
-                class="auth-input"
-                required
-              />
-            </div>
-
-            <div class="field-group">
               <label>{{ t('設定密碼（至少 6 碼）', 'Password (Min 6 chars)') }}<span class="req">*</span></label>
               <div class="pwd-input-wrapper">
                 <input
@@ -151,6 +127,30 @@
                   </svg>
                 </button>
               </div>
+            </div>
+
+            <div class="field-group">
+              <label>{{ t('申請人真實姓名（Name）', 'Full Name') }}<span class="req">*</span></label>
+              <input
+                type="text"
+                v-model.trim="regForm.name"
+                :placeholder="t('請輸入您的真實姓名（必填）', 'Enter your full name (Required)')"
+                maxlength="30"
+                class="auth-input"
+                required
+              />
+            </div>
+
+            <div class="field-group">
+              <label>{{ t('聯絡電話（Phone）', 'Phone Number') }}<span class="req">*</span></label>
+              <input
+                type="tel"
+                v-model.trim="regForm.phone"
+                :placeholder="t('例如：0912-345678 或市話（必填）', 'e.g., +886-912-345678 (Required)')"
+                maxlength="20"
+                class="auth-input"
+                required
+              />
             </div>
           </div>
 

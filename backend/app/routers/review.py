@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
 from pydantic import BaseModel
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from concurrent.futures import ThreadPoolExecutor
 
 from app.database import SessionLocal
@@ -375,65 +376,78 @@ def get_paper_modal_detail(
 
 
 # 利用 Python 內建的 concurrent.futures.ThreadPoolExecutor 讓民眾版與專家版同時平行起跑（各自使用獨立的 SessionLocal() 確保資料庫執行緒安全）
-def _task_public(evaluation_id: int):
+def _task_public(evaluation_id: int, lang: str = "zh"):
     db = SessionLocal()
     try:
-        generate_public_report(db, evaluation_id)
+        generate_public_report(db, evaluation_id, lang=lang)
     except Exception as e:
         print(f"❌ 民眾版報告背景生成失敗 (Evaluation #{evaluation_id}): {e}")
     finally:
         db.close()
 
-def _task_expert(evaluation_id: int):
+
+def _task_expert(evaluation_id: int, lang: str = "zh"):
     db = SessionLocal()
     try:
-        generate_expert_report(db, evaluation_id)
+        generate_expert_report(db, evaluation_id, lang=lang)
     except Exception as e:
         print(f"❌ 專家版報告背景生成失敗 (Evaluation #{evaluation_id}): {e}")
     finally:
         db.close()
 
-def _run_llm_reports_in_background(evaluation_id: int):
+
+def _run_llm_reports_in_background(evaluation_id: int, lang: str = "zh"):
     """
     🚀 雙執行緒平行生成：
     同時向 Gemini 發出「民眾版」與「專家版」請求！
     民眾版因篇幅短會率先完成並解鎖前端按鈕，而專家版也在同一時間平行生成，總等待時間直接砍半！
     """
     with ThreadPoolExecutor(max_workers=2) as executor:
-        executor.submit(_task_public, evaluation_id)
-        executor.submit(_task_expert, evaluation_id)
+        executor.submit(_task_public, evaluation_id, lang)
+        executor.submit(_task_expert, evaluation_id, lang)
 
 
 # =====================================================================
 # API 7: 點擊『執行統合分析』
 # 1. 立即同步計算 10 KCC 與 Hazard Score (僅需 0.05 秒)
-# 2. 將耗時的 LLM 報告生成交給 BackgroundTasks 在背景依序執行 (民眾版 -> 專家版)
+# 2. 將當前介面語系 (lang = 'zh' | 'en') 存入 filter_criteria["lang"]
+# 3. 將耗時的 LLM 報告生成交給 BackgroundTasks 在背景平行執行
 # =====================================================================
 @router.post("/{evaluation_id}/analyze")
 def run_meta_analysis(
     evaluation_id: int,
     background_tasks: BackgroundTasks,
+    lang: str = Query("zh", description="報告生成語系: zh | en"),
     db: Session = Depends(get_db)
 ):
     eval_obj = db.query(Evaluation).filter_by(id=evaluation_id).first()
     if not eval_obj:
         raise HTTPException(status_code=404, detail=f"找不到評估單 ID: {evaluation_id}")
 
-    # 1. 先將舊報告清空並標記為 GENERATING_PUBLIC，讓前端知道民眾版正在生成中
+    report_lang = "en" if lang == "en" else "zh"
+
+    # 1. 立即計算 10 KCC 分數與總體危害分數 (瞬間完成)
+    score_res = calculate_evaluation_scores(db, evaluation_id)
+
+    # 2. 重新載入 eval_obj，將語系寫入 filter_criteria["lang"] 並清空舊報告
+    db.refresh(eval_obj)
+    updated_criteria = dict(eval_obj.filter_criteria or {})
+    updated_criteria["lang"] = report_lang
+    eval_obj.filter_criteria = updated_criteria
+    flag_modified(eval_obj, "filter_criteria")
+
     eval_obj.public_report = None
     eval_obj.expert_report = None
     eval_obj.status = "GENERATING_PUBLIC"
     db.commit()
 
-    # 2. 立即計算 10 KCC 分數與總體危害分數 (瞬間完成)
-    score_res = calculate_evaluation_scores(db, evaluation_id)
-
-    # 3. 排入背景任務依序生成民眾版與專家版報告
-    background_tasks.add_task(_run_llm_reports_in_background, evaluation_id)
+    # 3. 排入背景任務依指定語系平行生成民眾版與專家版報告
+    background_tasks.add_task(_run_llm_reports_in_background, evaluation_id, report_lang)
 
     return {
-        "message": "儀表板算分完成，LLM 報告已於背景啟動分段生成",
+        "message": f"儀表板算分完成，LLM 報告 ({report_lang}) 已於背景啟動分段生成",
         "evaluation_id": evaluation_id,
+        "report_lang": report_lang,
         "hazard_score": score_res["hazard_score"],
         "risk_level": score_res["risk_level"],
         "status": "GENERATING_PUBLIC"

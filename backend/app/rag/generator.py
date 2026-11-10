@@ -177,9 +177,9 @@ def _generate_with_retry(
 # =========================================================================
 # 獨立函式 1：先產生【民眾版本報告 (Public Report)】並立即寫入資料庫解鎖按鈕
 # =========================================================================
-def generate_public_report(db: Session, evaluation_id: int) -> str:
+def generate_public_report(db: Session, evaluation_id: int, lang: str | None = None) -> str:
     """
-    單獨生成「民眾版本 (public_report)」：
+    單獨生成「民眾版本 (public_report)」(支援 'zh' 繁體中文 與 'en' 英文)：
     每個 KCC 預設僅取前 PUBLIC_MAX_PAPERS_PER_KCC (1) 篇文獻，生成完畢後立即 Commit 至資料庫，
     讓前端『民眾版本』按鈕率先解鎖，無須等待專家版！
     """
@@ -189,6 +189,9 @@ def generate_public_report(db: Session, evaluation_id: int) -> str:
     eval_obj = db.query(Evaluation).filter_by(id=evaluation_id).first()
     if not eval_obj or not eval_obj.kcc_scores:
         raise ValueError(f"請先對 Evaluation ID {evaluation_id} 執行 calculate_evaluation_scores 算分！")
+
+    report_lang = lang or ((eval_obj.filter_criteria or {}).get("lang", "zh"))
+    is_en = (report_lang == "en")
 
     client = genai.Client(api_key=GEMINI_API_KEY)
     
@@ -200,7 +203,30 @@ def generate_public_report(db: Session, evaluation_id: int) -> str:
         max_papers_per_kcc=PUBLIC_MAX_PAPERS_PER_KCC
     )
 
-    public_prompt = f"""
+    if is_en:
+        public_prompt = f"""
+You are a professional toxicologist and public health communicator. Based on the systematic literature review data for the chemical "{eval_obj.chemical_name} (CAS: {eval_obj.cas_number})" below, write an accessible **Public Health Risk Summary Report** in **English** (clear, engaging tone for the general public, using Markdown formatting).
+
+[System Assessment Summary]
+- Target Chemical: {eval_obj.chemical_name} (CAS: {eval_obj.cas_number})
+- Overall Hazard Score: {eval_obj.hazard_score} / 100 ({eval_obj.risk_level})
+
+[10 Key Characteristics of Carcinogens (10 KCCs) Evidence Summary (Top {PUBLIC_MAX_PAPERS_PER_KCC} representative paper per KC)]
+{public_evidence_context}
+
+Please strictly follow the three-chapter structure below (you MUST use Markdown headings `### 1.`, `### 2.`, and `### 3.` so the frontend can split them into tabs):
+### 1. Chemical Overview & Everyday Sources
+Explain in plain English what "{eval_obj.chemical_name}" is, its basic properties, and where people commonly encounter it in daily life or the environment (e.g., high-temperature food processing, air pollution, consumer products, or occupational settings).
+
+### 2. Major Exposure Routes & Risk Reduction
+Describe how the general public or workers are primarily exposed to this chemical (e.g., dietary ingestion, inhalation, dermal contact) and provide practical, actionable daily tips to reduce exposure.
+
+### 3. Key Characteristics (KCC) Conclusions & Hazard Score
+- Summarize in plain language what the scientific literature reveals about how this chemical affects the body (e.g., DNA damage, oxidative stress, chronic inflammation).
+- Clearly explain what the final **Hazard Score of {eval_obj.hazard_score}/100 ({eval_obj.risk_level})** means for public health and provide concluding recommendations.
+"""
+    else:
+        public_prompt = f"""
 你是一位專業且善於科普溝通的毒理學與公共衛生專家。請根據以下針對化學物質「{eval_obj.chemical_name} (CAS: {eval_obj.cas_number})」的系統性文獻回顧數據，撰寫一份給一般民眾閱讀的【大眾版風險評估報告】（使用繁體中文，語氣清晰易懂，支援 Markdown 格式）。
 
 【本次系統計算結果】
@@ -222,7 +248,7 @@ def generate_public_report(db: Session, evaluation_id: int) -> str:
 - 清楚說明最終得出的 **危害分數 {eval_obj.hazard_score}/100 ({eval_obj.risk_level})** 代表什麼健康風險意義與總結建議。
 """
 
-    print(f"🤖 [1/2] 正在呼叫 LLM 生成【民眾版本報告 (每個 KCC 取最多 {PUBLIC_MAX_PAPERS_PER_KCC} 篇文獻)】...")
+    print(f"🤖 [1/2] 正在呼叫 LLM 生成【民眾版本報告 (語系: {report_lang}, 每個 KCC 取最多 {PUBLIC_MAX_PAPERS_PER_KCC} 篇文獻)】...")
     public_report_text = _generate_with_retry(client, LLM_MODEL, public_prompt)
 
     # 立即寫入資料庫並 Commit，讓前端輪詢馬上偵測到民眾版已完成！
@@ -230,7 +256,7 @@ def generate_public_report(db: Session, evaluation_id: int) -> str:
     eval_obj.status = "GENERATING_EXPERT"
     db.commit()
     db.refresh(eval_obj)
-    print("   ✅ 【民眾版本報告】已生成並寫入資料庫！前端按鈕已可解鎖。")
+    print(f"   ✅ 【民眾版本報告 ({report_lang})】已生成並寫入資料庫！前端按鈕已可解鎖。")
 
     return public_report_text
 
@@ -238,9 +264,9 @@ def generate_public_report(db: Session, evaluation_id: int) -> str:
 # =========================================================================
 # 獨立函式 2：接著產生【專家版本報告 (Expert Report)】
 # =========================================================================
-def generate_expert_report(db: Session, evaluation_id: int) -> str:
+def generate_expert_report(db: Session, evaluation_id: int, lang: str | None = None) -> str:
     """
-    單獨生成「專家版本 (expert_report)」：
+    單獨生成「專家版本 (expert_report)」(支援 'zh' 繁體中文 與 'en' 英文)：
     將專家精鍊後保留 (is_selected=True) 納入每個 KCC 的 3 篇選定文獻放入 Prompt，生成完畢後更新狀態為 COMPLETED。
     """
     if not GEMINI_API_KEY:
@@ -249,6 +275,9 @@ def generate_expert_report(db: Session, evaluation_id: int) -> str:
     eval_obj = db.query(Evaluation).filter_by(id=evaluation_id).first()
     if not eval_obj or not eval_obj.kcc_scores:
         raise ValueError(f"請先對 Evaluation ID {evaluation_id} 執行 calculate_evaluation_scores 算分！")
+
+    report_lang = lang or ((eval_obj.filter_criteria or {}).get("lang", "zh"))
+    is_en = (report_lang == "en")
 
     client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -260,7 +289,41 @@ def generate_expert_report(db: Session, evaluation_id: int) -> str:
         max_papers_per_kcc=EXPERT_MAX_PAPERS_PER_KCC
     )
 
-    expert_prompt = f"""
+    if is_en:
+        expert_prompt = f"""
+You are a senior Regulatory Toxicologist specializing in the IARC 10 Key Characteristics of Carcinogens (10 KCCs) and quantitative hazard assessment.
+Based on the RAG-retrieved, Cross-Encoder-reranked, and expert-curated Evidence Pool below, write a rigorous **Expert Regulatory Toxicology Synthesis Report** in **English** for "{eval_obj.chemical_name} (CAS: {eval_obj.cas_number})" using Markdown formatting.
+
+[Strict Citation Format Rule]
+Whenever citing any study in the text, you MUST include its PubMed ID in the exact format `(PMID: xxxxxxxx)` (or `(PMID: 11111111, PMID: 22222222)` for multiple studies). The backend will automatically transform these into interactive APA 7th `(Author et al., Year)` badges with PMID tooltips.
+
+[Quantitative Assessment Data]
+- Target Chemical: {eval_obj.chemical_name} (CAS: {eval_obj.cas_number})
+- Overall Hazard Score: {eval_obj.hazard_score} / 100 ({eval_obj.risk_level})
+- Scoring Tiers: 75–100% = Strong/High Evidence; 50–74% = Moderate Evidence; 20–49% = Weak Evidence; 0–19% = Inadequate Evidence.
+
+[Curated 10 KCCs Evidence Pool (Up to {EXPERT_MAX_PAPERS_PER_KCC} top papers per KC)]
+{expert_evidence_context}
+
+Please strictly follow the four core chapters below (you MUST use Markdown headings `### 1.`, `### 2.`, `### 3.`, and `### 4.` so the frontend can split them into tabs):
+
+### 1. Margin of Exposure (MoE) & Dose-Response Assessment
+- Synthesize the distribution of experimental models and exposure conditions to evaluate the Margin of Exposure (MoE) and dose-response relationships (biological gradient).
+- If genotoxic and electrophilic mechanisms are strong, discuss the regulatory implications of a non-threshold mode of action for MoE derivation and risk management, noting any limitations of abstract-based literature screening.
+
+### 2. Critical Effects & Key Toxicological Endpoints
+- Identify the critical biological effects, primary target organs, and core Mode of Action (MoA) / Adverse Outcome Pathways (AOP) for "{eval_obj.chemical_name}", citing specific studies with `(PMID: xxxxxxxx)`.
+
+### 3. 10 Key Characteristics of Carcinogens (10 KCCs) Synthesis
+Divide the 10 KCCs into two analytical subsections:
+- **(A) Mechanistic Characteristics with Strong & Moderate Evidence**: Provide an in-depth molecular and experimental synthesis for high-scoring KCCs, citing `(PMID: xxxxxxxx)`.
+- **(B) Characteristics with Weak or Inadequate Evidence (Data Gaps)**: Explicitly identify low-scoring or zero-paper KCCs, discuss scientific data gaps, and recommend specific toxicological assays for future investigation.
+
+### 4. Overall Hazard Score & Weight of Evidence (WoE) Conclusion
+- Summarize why this chemical received an overall **Hazard Score of {eval_obj.hazard_score} / 100 ({eval_obj.risk_level})**, detailing the primary score drivers and the final Weight of Evidence (WoE) regulatory conclusion.
+"""
+    else:
+        expert_prompt = f"""
 你是一位資深法規毒理學家（Regulatory Toxicologist），專精於 IARC 10 Key Characteristics of Carcinogens (10 KCCs) 與風險評估。
 請根據以下經由 RAG 檢索、Cross-Encoder 重排與專家篩選後的實證文獻池（Evidence Pool），為「{eval_obj.chemical_name} (CAS: {eval_obj.cas_number})」撰寫一份嚴謹的【專家版毒理學統合分析報告】（使用專業繁體中文，專有名詞附註英文，支援 Markdown 格式）。
 
@@ -293,7 +356,7 @@ def generate_expert_report(db: Session, evaluation_id: int) -> str:
 - 總結為何該化學物質獲得 **{eval_obj.hazard_score} / 100 ({eval_obj.risk_level})** 的危害分數，交代主要得分來源與證據權重（Weight of Evidence, WoE）最終定論。
 """
 
-    print(f"🧬 [2/2] 正在呼叫 LLM 生成【專家版本報告 (每個 KCC 取最多 {EXPERT_MAX_PAPERS_PER_KCC} 篇文獻)】...")
+    print(f"🧬 [2/2] 正在呼叫 LLM 生成【專家版本報告 (語系: {report_lang}, 每個 KCC 取最多 {EXPERT_MAX_PAPERS_PER_KCC} 篇文獻)】...")
     expert_report_text = _generate_with_retry(client, LLM_MODEL, expert_prompt)
 
     # 寫入資料庫並將狀態改為 COMPLETED
@@ -301,17 +364,17 @@ def generate_expert_report(db: Session, evaluation_id: int) -> str:
     eval_obj.status = "COMPLETED"
     db.commit()
     db.refresh(eval_obj)
-    print("   ✅ 【專家版本報告】已生成並寫入資料庫！全數報告皆已完成。")
+    print(f"   ✅ 【專家版本報告 ({report_lang})】已生成並寫入資料庫！全數報告皆已完成。")
 
     return expert_report_text
 
 
-def generate_evaluation_reports(db: Session, evaluation_id: int) -> dict:
+def generate_evaluation_reports(db: Session, evaluation_id: int, lang: str | None = None) -> dict:
     """
     依序執行「1. 民眾版本 (先跑並先存檔)」與「2. 專家版本 (後跑並存檔)」。
     """
-    public_text = generate_public_report(db, evaluation_id)
-    expert_text = generate_expert_report(db, evaluation_id)
+    public_text = generate_public_report(db, evaluation_id, lang=lang)
+    expert_text = generate_expert_report(db, evaluation_id, lang=lang)
 
     eval_obj = db.query(Evaluation).filter_by(id=evaluation_id).first()
     return {

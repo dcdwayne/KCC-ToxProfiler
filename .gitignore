@@ -16,3 +16,6 @@ backend/er-diagram.png
 
 # 忽略 ssl 憑證與金鑰
 frontend/ssl/*
+
+# 忽略 Mermaid.js 繪製架構圖 
+mermaid/*
