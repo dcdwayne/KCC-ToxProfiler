@@ -455,13 +455,11 @@ watch(
   { deep: true }
 )
 
-// 當切換右上角中英語言且對話尚在初始第 1 步時，自動刷新歡迎詞語系
+// 當使用者切換右上角 EN / 中文 時，直接呼叫 restartConversation() 重置對話
 watch(
   () => i18nState.lang,
   () => {
-    if (messages.value.length === 1 && !currentRole.value) {
-      restartConversation()
-    }
+    restartConversation()
   }
 )
 
@@ -604,7 +602,7 @@ const handleSelectRole = async (roleName) => {
 
   isThinking.value = true
   try {
-    const res = await fetch(`${API_BASE_URL}/chat/chemicals`, {
+    const res = await fetch(`${API_BASE_URL}/chat/chemicals?lang=${i18nState.lang}`, {
       credentials: 'include'
     })
     if (!res.ok) throw new Error('Failed to fetch selected chemicals')

@@ -41,6 +41,12 @@ def format_to_taiwan_time(dt) -> str:
     return tw_dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
+def _get_record_lang(r: Evaluation) -> str:
+    """從 filter_criteria JSONB 判斷該筆紀錄為中文 ('zh') 或英文 ('en')"""
+    criteria = r.filter_criteria or {}
+    return "en" if criteria.get("lang") == "en" else "zh"
+
+
 # =====================================================================
 # API 1: 取得所有歷史評估紀錄 (支援多選組合排序：含評估時間由近到遠)
 # =====================================================================
@@ -60,6 +66,7 @@ def get_history_records(
             "hazard_score": r.hazard_score,
             "risk_level": r.risk_level or "UNSCORED",
             "status": r.status or "REVIEWING",
+            "report_lang": _get_record_lang(r),
             "is_selected": bool(r.is_selected),
             "created_at_tw": format_to_taiwan_time(r.created_at),
             "raw_timestamp": r.created_at.timestamp() if r.created_at else 0
@@ -97,7 +104,7 @@ def get_history_records(
 
 
 # =====================================================================
-# API 2: 切換勾選狀態 (強制同一個化學物質只能勾選一筆作為 FastMCP 資料源)
+# API 2: 切換勾選狀態 (同一個化學物質在「中文版 (zh)」與「英文版 (en)」各限勾選一筆作為 FastMCP 資料源)
 # =====================================================================
 class ToggleSelectRequest(BaseModel):
     is_selected: bool
@@ -113,11 +120,22 @@ def toggle_select_record(
     if not target:
         raise HTTPException(status_code=404, detail=f"找不到評估紀錄 ID: {evaluation_id}")
 
+    target_lang = _get_record_lang(target)
+
+    # 若勾選為 True，僅將「同一個 cas_number 且同一個語系 (zh 或 en)」的其他紀錄取消勾選
     if payload.is_selected:
-        db.query(Evaluation).filter(
-            Evaluation.cas_number == target.cas_number,
-            Evaluation.id != evaluation_id
-        ).update({Evaluation.is_selected: False}, synchronize_session=False)
+        same_chem_rows = (
+            db.query(Evaluation)
+            .filter(
+                Evaluation.cas_number == target.cas_number,
+                Evaluation.id != evaluation_id,
+                Evaluation.is_selected == True
+            )
+            .all()
+        )
+        for row in same_chem_rows:
+            if _get_record_lang(row) == target_lang:
+                row.is_selected = False
 
     target.is_selected = payload.is_selected
     db.commit()
@@ -126,6 +144,7 @@ def toggle_select_record(
         "evaluation_id": target.id,
         "cas_number": target.cas_number,
         "chemical_name": target.chemical_name,
+        "report_lang": target_lang,
         "is_selected": target.is_selected
     }
 

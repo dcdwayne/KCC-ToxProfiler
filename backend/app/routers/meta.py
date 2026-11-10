@@ -138,7 +138,12 @@ def _markdown_to_clean_html(md_text: str, pmid_map: dict[str, dict]) -> str:
     return "".join(html_lines)
 
 
-def _split_markdown_into_tabs(raw_md: str, pmid_map: dict[str, dict], is_expert: bool = False) -> list[dict]:
+def _split_markdown_into_tabs(
+    raw_md: str,
+    pmid_map: dict[str, dict],
+    is_expert: bool = False,
+    lang: str = "zh"
+) -> list[dict]:
     """
     依照 Markdown 中的 `### 1.`, `### 2.` 切分為獨立標籤頁資料，供前端 MetaPublic / MetaExpert 渲染
     """
@@ -167,14 +172,24 @@ def _split_markdown_into_tabs(raw_md: str, pmid_map: dict[str, dict], is_expert:
     elif not sections:
         sections = [raw_md.strip()]
 
-    # 定義簡潔好看的標籤頁短標題
-    public_short_titles = ["1. 化學物質介紹", "2. 主要暴露途徑", "3. KCC 結論與危害分數"]
-    expert_short_titles = [
-        "1. MoE 與劑量效應",
-        "2. Critical Effects (臨界效應)",
-        "3. 10 KCCs 成果詳解",
-        "4. 綜合危害分數與結論"
-    ]
+    # 定義簡潔好看的中/英文標籤頁短標題
+    if lang == "en":
+        public_short_titles = ["1. Chemical Overview", "2. Exposure Routes", "3. KCC & Hazard Score"]
+        expert_short_titles = [
+            "1. MoE & Dose-Response",
+            "2. Critical Effects",
+            "3. 10 KCCs Synthesis",
+            "4. Hazard Score & WoE"
+        ]
+    else:
+        public_short_titles = ["1. 化學物質介紹", "2. 主要暴露途徑", "3. KCC 結論與危害分數"]
+        expert_short_titles = [
+            "1. MoE 與劑量效應",
+            "2. Critical Effects (臨界效應)",
+            "3. 10 KCCs 成果詳解",
+            "4. 綜合危害分數與結論"
+        ]
+
     short_list = expert_short_titles if is_expert else public_short_titles
 
     tabs = []
@@ -185,7 +200,7 @@ def _split_markdown_into_tabs(raw_md: str, pmid_map: dict[str, dict], is_expert:
             full_heading = first_line_match.group(1).strip()
             body_md = first_line_match.group(2).strip()
         else:
-            full_heading = short_list[idx] if idx < len(short_list) else f"章節 {idx + 1}"
+            full_heading = short_list[idx] if idx < len(short_list) else f"Section {idx + 1}"
             body_md = sec_text
 
         tab_label = short_list[idx] if idx < len(short_list) else full_heading[:18]
@@ -216,6 +231,7 @@ def get_meta_dashboard(evaluation_id: int, db: Session = Depends(get_db)):
 
     has_public = bool(eval_obj.public_report)
     has_expert = bool(eval_obj.expert_report)
+    report_lang = "en" if (eval_obj.filter_criteria or {}).get("lang") == "en" else "zh"
 
     return {
         "evaluation_id": eval_obj.id,
@@ -225,6 +241,7 @@ def get_meta_dashboard(evaluation_id: int, db: Session = Depends(get_db)):
         "hazard_score": eval_obj.hazard_score,
         "risk_level": eval_obj.risk_level,
         "status": eval_obj.status,
+        "report_lang": report_lang,
         "has_public_report": has_public,
         "has_expert_report": has_expert,
         "has_reports": (has_public and has_expert),
@@ -243,6 +260,7 @@ def get_meta_reports(evaluation_id: int, db: Session = Depends(get_db)):
 
     has_public = bool(eval_obj.public_report)
     has_expert = bool(eval_obj.expert_report)
+    report_lang = "en" if (eval_obj.filter_criteria or {}).get("lang") == "en" else "zh"
 
     public_tabs = []
     expert_tabs = []
@@ -252,11 +270,11 @@ def get_meta_reports(evaluation_id: int, db: Session = Depends(get_db)):
 
     # 只要民眾版已經生成好，就先切分並回傳 public_tabs，不用等專家版！
     if has_public:
-        public_tabs = _split_markdown_into_tabs(eval_obj.public_report, pmid_map, is_expert=False)
+        public_tabs = _split_markdown_into_tabs(eval_obj.public_report, pmid_map, is_expert=False, lang=report_lang)
 
     # 專家版生成好時，再切分並回傳 expert_tabs
     if has_expert:
-        expert_tabs = _split_markdown_into_tabs(eval_obj.expert_report, pmid_map, is_expert=True)
+        expert_tabs = _split_markdown_into_tabs(eval_obj.expert_report, pmid_map, is_expert=True, lang=report_lang)
 
     return {
         "evaluation_id": eval_obj.id,
@@ -266,6 +284,7 @@ def get_meta_reports(evaluation_id: int, db: Session = Depends(get_db)):
         "hazard_score": eval_obj.hazard_score,
         "risk_level": eval_obj.risk_level,
         "status": eval_obj.status,
+        "report_lang": report_lang,
         "has_public_report": has_public,
         "has_expert_report": has_expert,
         "has_reports": (has_public and has_expert),

@@ -256,7 +256,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { isEn, t } from '../utils/i18nStore'
+import { i18nState, isEn, t } from '../utils/i18nStore'
 import SystematicReviewList from '../components/SystematicReviewList.vue'
 import PaperDetailModal from '../components/PaperDetailModal.vue'
 import InfoGuideModal from '../components/InfoGuideModal.vue'
@@ -596,18 +596,28 @@ const closeModal = () => {
   selectedPaperDetail.value = null
 }
 
-// 7. 點擊『執行統合分析』-> 算分 + LLM 生成報告 -> 跳轉至 MetaAnalysis 頁面
+// 7. 點擊『執行統合分析』-> 算分 + LLM 生成報告 (依當前語系生成中/英文報告) -> 跳轉至 MetaAnalysis 頁面
 const goToMetaAnalysis = async () => {
   isRunningAnalysis.value = true
   try {
-    const res = await fetch(`${API_BASE_URL}/review/${evaluationId.value}/analyze`, {
-      method: 'POST'
-    })
-    if (!res.ok) throw new Error('統合分析執行失敗')
+    const currentLang = isEn.value ? 'en' : 'zh'
+    const res = await fetch(
+      `${API_BASE_URL}/review/${evaluationId.value}/analyze?lang=${currentLang}`,
+      { method: 'POST', credentials: 'include' }
+    )
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}))
+      throw new Error(errData.detail || `HTTP ${res.status}`)
+    }
     router.push({ path: '/meta', query: { eval_id: evaluationId.value } })
   } catch (err) {
     console.error('執行統合分析失敗:', err)
-    alert(t('執行統合分析失敗，請確認後端服務與 GEMINI_API_KEY 設定！', 'Meta-analysis failed. Please check backend service and GEMINI_API_KEY!'))
+    alert(
+      t(
+        `執行統合分析失敗 (${err.message})，請確認後端服務是否正常運行！`,
+        `Meta-analysis failed (${err.message}). Please check backend service!`
+      )
+    )
   } finally {
     isRunningAnalysis.value = false
   }

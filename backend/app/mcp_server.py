@@ -26,12 +26,19 @@ CAS_TO_ZH = {
 }
 
 
+def _get_record_lang(r: Evaluation) -> str:
+    """從 filter_criteria JSONB 中讀取該筆評估報告的語系 ('zh' 或 'en')，舊資料預設為 'zh'"""
+    criteria = r.filter_criteria or {}
+    return "en" if criteria.get("lang") == "en" else "zh"
+
+
 @mcp.tool()
-def get_selected_chemicals() -> list[dict]:
+def get_selected_chemicals(lang: str = "zh") -> list[dict]:
     """
-    取得目前在歷史紀錄管理頁面中被勾選 (is_selected = True) 的所有化學物質清單。
+    取得目前在歷史紀錄管理頁面中被勾選 (is_selected = True) 且符合指定語系 (lang = 'zh' | 'en') 的所有化學物質清單。
     用於向使用者提供可選擇的關注化學物質按鈕。
     """
+    target_lang = "en" if lang == "en" else "zh"
     db = SessionLocal()
     try:
         rows = (
@@ -42,6 +49,10 @@ def get_selected_chemicals() -> list[dict]:
         )
         result = []
         for r in rows:
+            rec_lang = _get_record_lang(r)
+            if rec_lang != target_lang:
+                continue
+
             zh_name = (r.filter_criteria or {}).get("chemical_zh") or CAS_TO_ZH.get(r.cas_number, r.chemical_name)
             result.append({
                 "evaluation_id": r.id,
@@ -50,7 +61,8 @@ def get_selected_chemicals() -> list[dict]:
                 "chemical_name_zh": zh_name,
                 "hazard_score": r.hazard_score,
                 "risk_level": r.risk_level,
-                "status": r.status
+                "status": r.status,
+                "report_lang": rec_lang
             })
         return result
     finally:
@@ -58,16 +70,20 @@ def get_selected_chemicals() -> list[dict]:
 
 
 @mcp.tool()
-def get_chemical_evaluation_data(chemical_query: str, role: str = "一般民眾") -> dict:
+def get_chemical_evaluation_data(chemical_query: str, role: str = "一般民眾", lang: str = "zh") -> dict:
     """
-    根據使用者選擇的化學物質名稱 (中文或英文或 CAS) 與角色 ('一般民眾' 或 '專家')，
-    取得 evaluations 表中 is_selected = True 的完整評估報告與 10 KCC 分數。
+    根據使用者選擇的化學物質名稱 (中文或英文或 CAS)、角色 ('一般民眾' 或 '專家') 與語系 ('zh' 或 'en')，
+    取得 evaluations 表中 is_selected = True 且語系相符的完整評估報告與 10 KCC 分數。
     """
+    target_lang = "en" if lang == "en" else "zh"
     db = SessionLocal()
     try:
         rows = db.query(Evaluation).filter(Evaluation.is_selected == True).all()
         target = None
         for r in rows:
+            if _get_record_lang(r) != target_lang:
+                continue
+
             zh_name = (r.filter_criteria or {}).get("chemical_zh") or CAS_TO_ZH.get(r.cas_number, "")
             if (
                 chemical_query in zh_name
@@ -78,10 +94,44 @@ def get_chemical_evaluation_data(chemical_query: str, role: str = "一般民眾"
                 break
 
         if not target:
-            return {"found": False, "message": f"目前知識庫中並未勾選「{chemical_query}」的評估紀錄。"}
+            msg = (
+                f"No selected English evaluation record found for '{chemical_query}'."
+                if target_lang == "en" else
+                f"目前知識庫中並未勾選「{chemical_query}」的中文版評估紀錄。"
+            )
+            return {"found": False, "message": msg}
 
         zh_name = (target.filter_criteria or {}).get("chemical_zh") or CAS_TO_ZH.get(target.cas_number, target.chemical_name)
         report_text = target.expert_report if role == "專家" else target.public_report
+
+        if target_lang == "en":
+            topics = (
+                [
+                    "Chemical Overview & Uses",
+                    "Major Exposure Routes & Prevention",
+                    "KCC Conclusions & Hazard Score"
+                ]
+                if role == "一般民眾"
+                else [
+                    "Margin of Exposure (MoE) & Dose-Response",
+                    "Critical Effects & Toxicological Endpoints",
+                    "10 Key Characteristics (10 KCCs) Synthesis",
+                    "Overall Hazard Score & WoE Conclusion"
+                ]
+            )
+            fallback_empty = "This report has not finished generating yet."
+        else:
+            topics = (
+                ["化學物質介紹", "主要暴露途徑", "KCC 結論與危害分數"]
+                if role == "一般民眾"
+                else [
+                    "Margin of Exposure (MoE) 與劑量效應評估",
+                    "Critical Effects (關鍵毒理與臨界效應)",
+                    "10 個關鍵致癌機轉 (10 KCCs) 分析成果詳解",
+                    "綜合危害分數 (Hazard Score) 與證據權重結論"
+                ]
+            )
+            fallback_empty = "該版本報告尚未生成完畢。"
 
         return {
             "found": True,
@@ -93,17 +143,9 @@ def get_chemical_evaluation_data(chemical_query: str, role: str = "一般民眾"
             "risk_level": target.risk_level,
             "kcc_scores": target.kcc_scores,
             "role_selected": role,
-            "report_content": report_text or "該版本報告尚未生成完畢。",
-            "available_topics": (
-                ["化學物質介紹", "主要暴露途徑", "KCC 結論與危害分數"]
-                if role == "一般民眾"
-                else [
-                    "Margin of Exposure (MoE) 與劑量效應評估",
-                    "Critical Effects (關鍵毒理與臨界效應)",
-                    "10 個關鍵致癌機轉 (10 KCCs) 分析成果詳解",
-                    "綜合危害分數 (Hazard Score) 與證據權重結論"
-                ]
-            )
+            "report_lang": target_lang,
+            "report_content": report_text or fallback_empty,
+            "available_topics": topics
         }
     finally:
         db.close()
